@@ -1,6 +1,7 @@
 package com.artlyrics.render;
 
 import com.artlyrics.Artlyrics;
+import com.artlyrics.compat.Mc;
 import com.artlyrics.config.ArtlyricsConfig;
 import com.artlyrics.config.Palette;
 import com.artlyrics.lyrics.LyricLine;
@@ -8,7 +9,6 @@ import com.artlyrics.lyrics.LyricWord;
 import com.artlyrics.lyrics.Lyrics;
 import com.artlyrics.nowplaying.NowPlaying;
 import com.mojang.blaze3d.vertex.PoseStack;
-import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -90,7 +90,8 @@ public final class SkyLyricsRenderer {
 		Font font;
 	}
 
-	public void render(WorldRenderContext context) {
+	/** Draws the lyrics; called from the main world pass with camera-relative positions. */
+	public void render(PoseStack poseStack, MultiBufferSource buffers) {
 		Artlyrics mod = Artlyrics.get();
 		Minecraft mc = Minecraft.getInstance();
 		if (mod == null || mc.level == null) {
@@ -119,8 +120,8 @@ public final class SkyLyricsRenderer {
 		}
 
 		Frame f = new Frame();
-		f.poseStack = context.matrices();
-		f.buffers = context.consumers();
+		f.poseStack = poseStack;
+		f.buffers = buffers;
 		f.font = mc.font;
 		double seconds = now / 1e9;
 		for (ShownLine line : shown) {
@@ -130,8 +131,8 @@ public final class SkyLyricsRenderer {
 
 	/** Hover anchor: eases towards where the camera looks, so text trails your view a little. */
 	private void followCamera(Camera camera, float dt, ArtlyricsConfig config) {
-		float targetYaw = camera.yRot();
-		float targetElev = -camera.xRot() + config.hoverRaise;
+		float targetYaw = Mc.cameraYaw(camera);
+		float targetElev = -Mc.cameraPitch(camera) + config.hoverRaise;
 		if (!hoverInitialized) {
 			hoverYaw = targetYaw;
 			hoverElev = targetElev;
@@ -180,7 +181,7 @@ public final class SkyLyricsRenderer {
 				jitterYaw = ((index * 37) % 17 - 8) * 0.9f;
 				jitterElev = ((index * 53) % 9 - 4) * 0.7f;
 			}
-			shown.add(new ShownLine(lyrics, index, line, camera.yRot() + jitterYaw, config.skyHeight + jitterElev));
+			shown.add(new ShownLine(lyrics, index, line, Mc.cameraYaw(camera) + jitterYaw, config.skyHeight + jitterElev));
 		}
 
 		long exitNanos = (long) (EXIT_NANOS / config.animationSpeed);

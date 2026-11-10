@@ -15,6 +15,7 @@
     "client": ["com.artlyrics.ArtlyricsClient"],
     "modmenu": ["com.artlyrics.compat.ModMenuIntegration"]
   },
+  "mixins": ${mixins},
   "depends": {
     "fabricloader": ">=0.17.0",
     "minecraft": "${minecraft_dependency}",

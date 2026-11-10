@@ -14,7 +14,7 @@ base {
 sourceSets {
     main {
         java.srcDirs = ["${rootDir}/src/main/java", "${rootDir}/src/compat/${project.compat}/java"]
-        resources.srcDirs = ["${rootDir}/src/main/resources"]
+        resources.srcDirs = ["${rootDir}/src/main/resources", "${rootDir}/src/compat/${project.compat}/resources"]
     }
 }
 
@@ -32,6 +32,7 @@ processResources {
         minecraft_dependency: project.minecraft_dependency,
         java_version        : project.java_version,
         loader_version      : project.loader_version,
+        mixins              : project.findProperty('mixins') ?: '[]',
     ]
     inputs.properties props
     filesMatching('fabric.mod.json') {

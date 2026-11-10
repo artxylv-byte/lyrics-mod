@@ -11,3 +11,43 @@ dependencies {
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
     modCompileOnly "com.terraformersmc:modmenu:${project.modmenu_version}"
 }
+
+// Same client game test as the main build (src/gametest): ./gradlew -p versions/1.21.9 runClientGameTest
+fabricApi {
+    configureTests {
+        createSourceSet = true
+        modId = 'artlyrics-gametest'
+        enableGameTests = false
+        enableClientGameTests = true
+        eula = true
+    }
+}
+
+sourceSets {
+    gametest {
+        java.srcDirs = ["${file('../..')}/src/gametest/java"]
+        resources.srcDirs = ["${file('../..')}/src/gametest/resources"]
+    }
+}
+
+// Launches the finished jar like a normal Fabric install (obfuscated Minecraft + the real Fabric API jar):
+// ./gradlew -p versions/1.21.9 prodRunClient
+configurations {
+    productionMods {
+        transitive = false
+    }
+}
+
+dependencies {
+    productionMods "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+}
+
+tasks.register('prodRunClient', net.fabricmc.loom.task.prod.ClientProductionRunTask) {
+    mods.from(configurations.productionMods)
+    mods.from(tasks.named('remapJar'))
+    runDir = file('build/prod-run')
+    jvmArgs.add('-Dartlyrics.demo=true')
+    if (project.hasProperty('world')) {
+        programArgs.addAll('--quickPlaySingleplayer', project.property('world'))
+    }
+}

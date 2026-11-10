@@ -1,11 +1,10 @@
 package com.artlyrics.render;
 
-import com.artlyrics.Artlyrics;
+import com.artlyrics.compat.Mc;
 import com.artlyrics.config.ArtlyricsConfig;
 import com.artlyrics.config.ArtlyricsConfig.TextFont;
 import net.minecraft.network.chat.FontDescription;
 import net.minecraft.network.chat.Style;
-import net.minecraft.resources.Identifier;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.EnumMap;
@@ -16,15 +15,15 @@ import java.util.Map;
  * gets big on screen) and a lighter one for menus and the song card.
  */
 public final class Fonts {
-	private static final FontDescription UNIFORM = new FontDescription.Resource(Identifier.withDefaultNamespace("uniform"));
+	private static final FontDescription UNIFORM = Mc.vanillaFont("uniform");
 	private static final Map<TextFont, FontDescription> WORLD = new EnumMap<>(TextFont.class);
 	private static final Map<TextFont, FontDescription> UI = new EnumMap<>(TextFont.class);
 
 	static {
 		for (TextFont font : TextFont.values()) {
 			if (font.bundled != null) {
-				WORLD.put(font, new FontDescription.Resource(Artlyrics.id(font.bundled)));
-				UI.put(font, new FontDescription.Resource(Artlyrics.id(font.bundled + "_ui")));
+				WORLD.put(font, Mc.modFont(font.bundled));
+				UI.put(font, Mc.modFont(font.bundled + "_ui"));
 			}
 		}
 	}

@@ -1,5 +1,6 @@
 package com.artlyrics;
 
+import com.artlyrics.compat.Mc;
 import com.artlyrics.config.ArtlyricsConfig;
 import com.artlyrics.lyrics.LrclibClient;
 import com.artlyrics.lyrics.LyricsManager;
@@ -15,9 +16,6 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
-import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
-import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
-import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -31,7 +29,7 @@ import java.nio.file.Path;
 public final class ArtlyricsClient implements ClientModInitializer {
 	private static final Logger LOGGER = LoggerFactory.getLogger("Artlyrics");
 
-	private static final KeyMapping.Category CATEGORY = KeyMapping.Category.register(Artlyrics.id("main"));
+	private static final KeyMapping.Category CATEGORY = Mc.keyCategory("main");
 	private static KeyMapping openMenu;
 	private static KeyMapping toggleLyrics;
 	private static KeyMapping toggleMode;
@@ -57,8 +55,8 @@ public final class ArtlyricsClient implements ClientModInitializer {
 		}
 
 		SkyLyricsRenderer renderer = new SkyLyricsRenderer();
-		WorldRenderEvents.AFTER_ENTITIES.register(renderer::render);
-		HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, Artlyrics.id("song_card"), new SongCardHud());
+		Mc.onWorldRender(renderer::render);
+		Mc.addHudElementBeforeChat("song_card", new SongCardHud());
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> renderer.reset());
 
 		openMenu = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.artlyrics.menu", GLFW.GLFW_KEY_K, CATEGORY));

@@ -7,7 +7,6 @@ import com.artlyrics.nowplaying.NowPlaying;
 import com.artlyrics.nowplaying.PlaybackTracker;
 import com.artlyrics.ui.UiHost;
 import net.minecraft.client.resources.language.I18n;
-import net.minecraft.resources.Identifier;
 import org.jetbrains.annotations.Nullable;
 
 /** Holds the mod's long-lived pieces. Created once by {@link ArtlyricsClient}. */
@@ -33,10 +32,6 @@ public final class Artlyrics {
 
 	public static Artlyrics get() {
 		return instance;
-	}
-
-	public static Identifier id(String path) {
-		return Identifier.fromNamespaceAndPath(MOD_ID, path);
 	}
 
 	public ArtlyricsConfig config() {

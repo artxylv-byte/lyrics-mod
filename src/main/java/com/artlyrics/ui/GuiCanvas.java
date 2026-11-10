@@ -1,11 +1,10 @@
 package com.artlyrics.ui;
 
-import com.artlyrics.Artlyrics;
+import com.artlyrics.compat.Mc;
 import com.artlyrics.config.ArtlyricsConfig.TextFont;
 import com.artlyrics.render.Fonts;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 
 /** {@link Canvas} backed by Minecraft's {@link GuiGraphics}. */
@@ -70,7 +69,7 @@ public final class GuiCanvas implements Canvas {
 
 	@Override
 	public void icon(String name, int x, int y, int argb) {
-		graphics.blitSprite(RenderPipelines.GUI_TEXTURED, Artlyrics.id("icon/" + name), x, y, 10, 10, mul(argb));
+		Mc.blitSprite(graphics, "icon/" + name, x, y, 10, 10, mul(argb));
 	}
 
 	@Override
