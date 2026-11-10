@@ -3,15 +3,21 @@
 A client-side Fabric mod for **Minecraft 1.21.11** that turns the song you're listening to into live, synced
 lyrics drawn in the world around you.
 
+![Artlyrics settings: the Look page](docs/settings-look.png)
+
 - **Skywriting**: each line is written across the sky where you were looking when it started, then slowly
-  drifts upward as it fades. It's part of the world, so hills and trees can get in the way.
+  drifts upward. It's part of the world, so hills and trees can get in the way.
 - **Hover**: lines hang just above your crosshair and trail a little behind as you turn. Nothing covers them.
-- **Song card**: a small card in the corner you pick, with the title, artist, a progress bar, the current line
-  colored as it's sung, and a preview of the next line between verses.
-- **Animations**: *Bloom* (words open up bright and settle into color), *Typewriter* (letters typed in time
-  with the singing), *Sweep* (color sweeps along a faint line) and *Spotlight* (one big word at a time).
-- **Palettes** named after Minecraft materials: Amethyst, Cherry, Ember, Prismarine, Honey, Moss, Quartz and the
-  slowly shifting Aurora. Add a shadow or a sign-style outline, an optional arc, size, sky height and smoother font.
+- **Smooth text**: eight bundled fonts (Soft, Bold, Script, Fancy, Handwritten, Deco, Bubbly, Typewriter) rendered
+  at high resolution, plus Minecraft's own fonts, with a soft glow, shadow or outline.
+- **Animations**: *Fade*, *Rise* (letters float up one by one), *Bloom*, *Typewriter*, *Sweep* and *Spotlight*,
+  with adjustable speed, how long lines linger and how they leave (float away, fade or shrink).
+- **Looks**: one-click combinations of font, palette, effect and animation (Starlight, Petal, Neon, Campfire,
+  Notebook, Tide, Postcard, Ballroom, Blocky).
+- **Palettes** named after Minecraft materials (Amethyst, Cherry, Ember, Prismarine, Honey, Moss, Quartz, the
+  shifting Aurora) or your own colors.
+- **Song card**: a small card with the title, artist, progress and the current line, in the corner you pick,
+  at the size and opacity you like.
 - **Demo song**: a short built-in song so you can try every look without playing music.
 
 Lyrics come from [LRCLIB](https://lrclib.net), a free, open lyrics database. When LRCLIB has word-level timing
@@ -54,23 +60,17 @@ Change them under Options → Controls → Key Binds → Artlyrics.
 
 ## Settings
 
-| Setting | What it does |
+Press `K` (or use Mod Menu) to open the settings. Changes apply live, and the world keeps running behind the
+screen, so turn on **Demo song** and watch while you adjust.
+
+| Page | What's there |
 | --- | --- |
-| Lyrics | Turns everything on or off |
-| Song card | Shows the song card |
-| Card corner | Top left, top right or bottom right |
-| Mode | *Skywriting* or *Hover* |
-| Animation | *Bloom*, *Typewriter*, *Sweep* or *Spotlight* |
-| Text effect | Shadow, outline or none |
-| Palette | Color palette |
-| Size | Text size (50–250%) |
-| Font | Minecraft font, or Minecraft's smoother Unifont-based font |
-| Sky height | How high above the horizon skywriting appears |
-| Sync offset | Shifts lyrics earlier (+) or later (−) if they're off for your setup |
-| Preferred player | Which app to follow when several are playing |
-| Arc | Bends lines into an arc |
-| Demo song | Loops the built-in demo song; close the settings to watch it |
-| Look up lyrics again | Clears the cache and looks the current song up again |
+| Now Playing | The current song, whether lyrics were found, the line being sung, quick settings |
+| Lyrics | Mode, animation, animation speed, exit style, how long lines linger, sync offset |
+| Look | Looks, fonts, palettes (with a custom color editor), text effect, glow, size, opacity, line width, bold, italic, ALL CAPS |
+| Placement | Skywriting height, distance, scatter, drift and arc; hover distance, height and how quickly it follows your view |
+| Song Card | Show or hide, position, size, background, artist, progress, next-line preview, with a live preview |
+| Music | Preferred player, demo song, look lyrics up again, detection status |
 
 Settings are saved in `config/artlyrics.json`.
 
@@ -92,7 +92,11 @@ Requires JDK 21.
 ./gradlew test -Dartlyrics.liveTests=true   # also query the real LRCLIB API
 ./gradlew runClient      # launch Minecraft with the mod (add -Dartlyrics.demo=true to the JVM args to start the demo song)
 ./gradlew runClientGameTest   # launch the game, play the demo song and save screenshots of each mode
+./gradlew test -Dartlyrics.uiPreview=true   # draw every settings page and the song card to build/ui-preview/*.png
 ```
+
+The UI preview doesn't start Minecraft: the settings screen and song card draw through a small `Canvas` interface,
+which the test implements with Java2D using Minecraft's own glyph sheets and the bundled fonts.
 
 The game-test screenshots end up in `build/run/clientGameTest/screenshots/`. The game test needs a machine with a
 real GPU; on headless software rendering (Mesa llvmpipe) Minecraft 1.21.11 only produces black frames.
@@ -104,12 +108,21 @@ src/main/java/com/artlyrics/
   ArtlyricsClient.java     entrypoint: events, keybinds
   nowplaying/              detecting the playing song (Windows / macOS / Linux / demo) and a smoothed clock
   lyrics/                  LRCLIB client, LRC and word-synced parsers, timing estimation, lookup cache
-  render/                  Skywriting / Hover renderer and the song card
-  screen/                  settings screen
-  config/                  settings and color styles
+  render/                  Skywriting / Hover renderer, fonts, song card HUD
+  ui/                      settings screen and song card, drawn through the Canvas interface
+  screen/                  Minecraft screen that hosts the settings UI
+  config/                  settings, palettes and looks
+src/main/resources/assets/artlyrics/
+  font/                    bundled TrueType fonts and their Minecraft font definitions
+  licenses/                the fonts' licenses (SIL Open Font License 1.1)
 src/gametest/              client game test that takes screenshots
 ```
 
 ## Credits
 
 Lyrics are provided by [LRCLIB](https://lrclib.net). The demo song's lyrics were written for this mod.
+
+Bundled fonts, all under the [SIL Open Font License 1.1](https://openfontlicense.org) (license texts in
+`src/main/resources/assets/artlyrics/licenses/`): Varela Round (Soft), Righteous (Bold), Courgette (Script),
+Great Vibes (Fancy), Patrick Hand (Handwritten), Poiret One (Deco), Sniglet (Bubbly) and Courier Prime
+(Typewriter), from [Google Fonts](https://github.com/google/fonts).
