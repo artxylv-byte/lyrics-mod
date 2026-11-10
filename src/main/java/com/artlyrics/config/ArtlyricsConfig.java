@@ -21,10 +21,10 @@ public final class ArtlyricsConfig {
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
 	public enum DisplayMode {
-		/** Words appear in 3D far out in the sky; blocks in front hide them. */
-		SKY,
-		/** Words float in front of you wherever you look and are never hidden (good for PvP). */
-		FRONT;
+		/** Lines are written onto the sky around you at a fixed height; terrain can cover them. */
+		SKYWRITING,
+		/** Lines hover near the crosshair, trail your view and are drawn over everything. */
+		HOVER;
 
 		public String translationKey() {
 			return "artlyrics.mode." + name().toLowerCase(Locale.ROOT);
@@ -32,15 +32,28 @@ public final class ArtlyricsConfig {
 	}
 
 	public enum Animation {
-		/** Each word fades and rises in as it is sung. */
-		WORD_BY_WORD,
-		/** The whole line shows at once and words light up as they are sung. */
-		KARAOKE,
-		/** Only the word being sung is shown, big. */
-		ONE_WORD;
+		/** Each word blooms open (grows and brightens) as it is sung. */
+		BLOOM,
+		/** Words are typed out letter by letter while they are sung. */
+		TYPEWRITER,
+		/** The whole line is shown faintly and a sweep of color follows the singing. */
+		SWEEP,
+		/** Only the word being sung is shown, large, in the middle. */
+		SPOTLIGHT;
 
 		public String translationKey() {
 			return "artlyrics.animation." + name().toLowerCase(Locale.ROOT);
+		}
+	}
+
+	public enum TextEffect {
+		SHADOW,
+		/** A dark outline around every letter, like glowing signs. */
+		OUTLINE,
+		NONE;
+
+		public String translationKey() {
+			return "artlyrics.effect." + name().toLowerCase(Locale.ROOT);
 		}
 	}
 
@@ -54,19 +67,29 @@ public final class ArtlyricsConfig {
 		}
 	}
 
+	/** Which corner of the screen the song card sits in. */
+	public enum CardCorner {
+		TOP_LEFT, TOP_RIGHT, BOTTOM_RIGHT;
+
+		public String translationKey() {
+			return "artlyrics.corner." + name().toLowerCase(Locale.ROOT);
+		}
+	}
+
 	public boolean enabled = true;
-	public DisplayMode displayMode = DisplayMode.SKY;
-	public Animation animation = Animation.WORD_BY_WORD;
-	public LyricStyle style = LyricStyle.LAVENDER;
+	public DisplayMode displayMode = DisplayMode.SKYWRITING;
+	public Animation animation = Animation.BLOOM;
+	public LyricStyle style = LyricStyle.AMETHYST;
 	public TextFont font = TextFont.DEFAULT;
-	/** Show the current line in a bar at the top of the screen. */
-	public boolean topBar = true;
-	/** Bend lines into a gentle arc. */
-	public boolean curved = true;
-	public boolean shadow = true;
+	public TextEffect textEffect = TextEffect.SHADOW;
+	/** Show a small card with the song, its progress and the current line. */
+	public boolean songCard = true;
+	public CardCorner cardCorner = CardCorner.TOP_LEFT;
+	/** Bend lines into an arc. */
+	public boolean arc = false;
 	/** Text size multiplier. */
 	public float size = 1.0f;
-	/** Degrees above the horizon for sky lyrics. */
+	/** Degrees above the horizon for skywriting. */
 	public float skyHeight = 18f;
 	/** Shifts lyrics in time; positive shows them earlier. */
 	public int offsetMs = 0;
@@ -95,13 +118,19 @@ public final class ArtlyricsConfig {
 
 	private void sanitize() {
 		if (displayMode == null) {
-			displayMode = DisplayMode.SKY;
+			displayMode = DisplayMode.SKYWRITING;
 		}
 		if (animation == null) {
-			animation = Animation.WORD_BY_WORD;
+			animation = Animation.BLOOM;
 		}
 		if (style == null) {
-			style = LyricStyle.LAVENDER;
+			style = LyricStyle.AMETHYST;
+		}
+		if (textEffect == null) {
+			textEffect = TextEffect.SHADOW;
+		}
+		if (cardCorner == null) {
+			cardCorner = CardCorner.TOP_LEFT;
 		}
 		if (font == null) {
 			font = TextFont.DEFAULT;

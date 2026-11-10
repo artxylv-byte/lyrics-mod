@@ -34,27 +34,33 @@ public class ArtlyricsScreenshotTest implements FabricClientGameTest {
 			world.getServer().runCommand("time set 12600");
 			world.getServer().runCommand("weather clear");
 
-			shot(context, "01-sky-word-by-word", 4200, -14f, c -> { });
-			shot(context, "02-sky-mid-line", 2300, -14f, c -> { });
-			shot(context, "03-sky-karaoke-sunset", 9900, -14f, c -> {
-				c.animation = ArtlyricsConfig.Animation.KARAOKE;
-				c.style = LyricStyle.SUNSET;
+			shot(context, "01-skywriting-bloom", 4200, -14f, c -> { });
+			shot(context, "02-skywriting-mid-line", 2300, -14f, c -> { });
+			shot(context, "03-typewriter-ember-outline", 9300, -14f, c -> {
+				c.animation = ArtlyricsConfig.Animation.TYPEWRITER;
+				c.style = LyricStyle.EMBER;
+				c.textEffect = ArtlyricsConfig.TextEffect.OUTLINE;
 			});
-			shot(context, "04-front-mode-dreamy", 14_600, 4f, c -> {
-				c.displayMode = ArtlyricsConfig.DisplayMode.FRONT;
-				c.style = LyricStyle.DREAMY;
+			shot(context, "04-hover-sweep-cherry", 14_600, 4f, c -> {
+				c.displayMode = ArtlyricsConfig.DisplayMode.HOVER;
+				c.animation = ArtlyricsConfig.Animation.SWEEP;
+				c.style = LyricStyle.CHERRY;
 			});
-			shot(context, "05-one-word-royal", 17_700, -14f, c -> {
-				c.animation = ArtlyricsConfig.Animation.ONE_WORD;
-				c.style = LyricStyle.ROYAL;
+			shot(context, "05-spotlight-honey", 17_700, -14f, c -> {
+				c.animation = ArtlyricsConfig.Animation.SPOTLIGHT;
+				c.style = LyricStyle.HONEY;
 			});
-			shot(context, "06-smooth-font-rainbow", 23_400, -14f, c -> {
+			shot(context, "06-smooth-font-aurora-arc", 23_400, -14f, c -> {
 				c.font = ArtlyricsConfig.TextFont.SMOOTH;
-				c.style = LyricStyle.RAINBOW;
+				c.style = LyricStyle.AURORA;
+				c.arc = true;
 			});
 
 			world.getServer().runCommand("time set 18000");
-			shot(context, "07-night-ice", 30_500, -14f, c -> c.style = LyricStyle.ICE);
+			shot(context, "07-night-prismarine-card-top-right", 30_500, -14f, c -> {
+				c.style = LyricStyle.PRISMARINE;
+				c.cardCorner = ArtlyricsConfig.CardCorner.TOP_RIGHT;
+			});
 
 			context.setScreen(() -> new ArtlyricsScreen(null));
 			context.waitTicks(10);
@@ -68,10 +74,13 @@ public class ArtlyricsScreenshotTest implements FabricClientGameTest {
 			Artlyrics mod = Artlyrics.get();
 			ArtlyricsConfig c = mod.config();
 			c.enabled = true;
-			c.displayMode = ArtlyricsConfig.DisplayMode.SKY;
-			c.animation = ArtlyricsConfig.Animation.WORD_BY_WORD;
-			c.style = LyricStyle.LAVENDER;
+			c.displayMode = ArtlyricsConfig.DisplayMode.SKYWRITING;
+			c.animation = ArtlyricsConfig.Animation.BLOOM;
+			c.style = LyricStyle.AMETHYST;
 			c.font = ArtlyricsConfig.TextFont.DEFAULT;
+			c.textEffect = ArtlyricsConfig.TextEffect.SHADOW;
+			c.cardCorner = ArtlyricsConfig.CardCorner.TOP_LEFT;
+			c.arc = false;
 			setup.accept(c);
 			mod.settingsChanged();
 

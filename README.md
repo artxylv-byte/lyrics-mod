@@ -1,17 +1,18 @@
 # Artlyrics
 
-A client-side Fabric mod for **Minecraft 1.21.11** that shows live, synced lyrics for whatever song you're
-listening to, written word by word across the sky.
+A client-side Fabric mod for **Minecraft 1.21.11** that turns the song you're listening to into live, synced
+lyrics drawn in the world around you.
 
-- **Sky mode**: words appear in 3D out in the sky, in the direction you were looking when the line started.
-  Blocks in front of them hide them, like real scenery.
-- **Front mode**: lines float in front of you wherever you look and are never hidden (better for PvP).
-- **Top bar**: the current line at the top of the screen, with the word being sung highlighted and a
-  song-progress line.
-- **Animations**: word by word, karaoke (the whole line lights up as it's sung), or one big word at a time.
-- **Styles**: Lavender, Dreamy, Sunset, Ice, Royal, Mint, Classic and Rainbow, with an optional smoother font,
-  curved lines, shadow, size, sky height and a sync offset.
-- **Preview**: a built-in demo song lets you try every look without playing music.
+- **Skywriting**: each line is written across the sky where you were looking when it started, then slowly
+  drifts upward as it fades. It's part of the world, so hills and trees can get in the way.
+- **Hover**: lines hang just above your crosshair and trail a little behind as you turn. Nothing covers them.
+- **Song card**: a small card in the corner you pick, with the title, artist, a progress bar, the current line
+  colored as it's sung, and a preview of the next line between verses.
+- **Animations**: *Bloom* (words open up bright and settle into color), *Typewriter* (letters typed in time
+  with the singing), *Sweep* (color sweeps along a faint line) and *Spotlight* (one big word at a time).
+- **Palettes** named after Minecraft materials: Amethyst, Cherry, Ember, Prismarine, Honey, Moss, Quartz and the
+  slowly shifting Aurora. Add a shadow or a sign-style outline, an optional arc, size, sky height and smoother font.
+- **Demo song**: a short built-in song so you can try every look without playing music.
 
 Lyrics come from [LRCLIB](https://lrclib.net), a free, open lyrics database. When LRCLIB has word-level timing
 for a song, words appear exactly as they're sung; otherwise Artlyrics estimates word timing from the line
@@ -46,8 +47,8 @@ The only network requests the mod makes go to `lrclib.net`, and they contain the
 | Key | Action |
 | --- | --- |
 | `K` | Open Artlyrics settings (or use Mod Menu) |
-| *unbound* | Toggle lyrics on/off |
-| *unbound* | Switch between sky and front mode |
+| *unbound* | Turn lyrics on/off |
+| *unbound* | Switch between Skywriting and Hover |
 
 Change them under Options → Controls → Key Binds → Artlyrics.
 
@@ -56,19 +57,20 @@ Change them under Options → Controls → Key Binds → Artlyrics.
 | Setting | What it does |
 | --- | --- |
 | Lyrics | Turns everything on or off |
-| Top bar | Shows the current line at the top of the screen |
-| Display | *In the sky* or *In front of you* |
-| Curved lines | Bends lines into a gentle arc |
-| Animation | *Word by word*, *Karaoke* or *One word at a time* |
-| Shadow | Drop shadow under the words |
-| Style | Color look |
+| Song card | Shows the song card |
+| Card corner | Top left, top right or bottom right |
+| Mode | *Skywriting* or *Hover* |
+| Animation | *Bloom*, *Typewriter*, *Sweep* or *Spotlight* |
+| Text effect | Shadow, outline or none |
+| Palette | Color palette |
 | Size | Text size (50–250%) |
 | Font | Minecraft font, or Minecraft's smoother Unifont-based font |
-| Sky height | How high above the horizon sky lyrics appear |
+| Sky height | How high above the horizon skywriting appears |
 | Sync offset | Shifts lyrics earlier (+) or later (−) if they're off for your setup |
 | Preferred player | Which app to follow when several are playing |
-| Preview | Plays the built-in demo song; close the settings to watch it |
-| Search lyrics again | Clears the cache and looks the current song up again |
+| Arc | Bends lines into an arc |
+| Demo song | Loops the built-in demo song; close the settings to watch it |
+| Look up lyrics again | Clears the cache and looks the current song up again |
 
 Settings are saved in `config/artlyrics.json`.
 
@@ -76,7 +78,7 @@ Settings are saved in `config/artlyrics.json`.
 
 - **"No lyrics found"**: LRCLIB doesn't have this song yet, or the player reports an unusual title.
   Artlyrics already retries with cleaned-up titles (dropping things like "Official Video" or "Remastered").
-- **"Only unsynced lyrics exist"**: LRCLIB has the words but no timestamps, so they can't be synced.
+- **"No timed lyrics for this song"**: LRCLIB has the words but no timestamps, so they can't be synced.
 - **Lyrics are early or late**: adjust **Sync offset**. Some browsers report the playback position coarsely.
 - **Nothing is detected on Linux**: check that `playerctl metadata` works in a terminal.
 
@@ -102,7 +104,7 @@ src/main/java/com/artlyrics/
   ArtlyricsClient.java     entrypoint: events, keybinds
   nowplaying/              detecting the playing song (Windows / macOS / Linux / demo) and a smoothed clock
   lyrics/                  LRCLIB client, LRC and word-synced parsers, timing estimation, lookup cache
-  render/                  3D sky / front renderer and the top bar HUD
+  render/                  Skywriting / Hover renderer and the song card
   screen/                  settings screen
   config/                  settings and color styles
 src/gametest/              client game test that takes screenshots

@@ -7,7 +7,7 @@ import com.artlyrics.nowplaying.MediaSource;
 import com.artlyrics.nowplaying.MediaSources;
 import com.artlyrics.nowplaying.PlaybackTracker;
 import com.artlyrics.render.SkyLyricsRenderer;
-import com.artlyrics.render.TopBarHud;
+import com.artlyrics.render.SongCardHud;
 import com.artlyrics.screen.ArtlyricsScreen;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.fabricmc.api.ClientModInitializer;
@@ -58,7 +58,7 @@ public final class ArtlyricsClient implements ClientModInitializer {
 
 		SkyLyricsRenderer renderer = new SkyLyricsRenderer();
 		WorldRenderEvents.AFTER_ENTITIES.register(renderer::render);
-		HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, Artlyrics.id("top_bar"), new TopBarHud());
+		HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, Artlyrics.id("song_card"), new SongCardHud());
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> renderer.reset());
 
 		openMenu = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.artlyrics.menu", GLFW.GLFW_KEY_K, CATEGORY));
@@ -95,9 +95,9 @@ public final class ArtlyricsClient implements ClientModInitializer {
 		}
 		while (toggleMode.consumeClick()) {
 			ArtlyricsConfig config = mod.config();
-			config.displayMode = config.displayMode == ArtlyricsConfig.DisplayMode.SKY
-					? ArtlyricsConfig.DisplayMode.FRONT
-					: ArtlyricsConfig.DisplayMode.SKY;
+			config.displayMode = config.displayMode == ArtlyricsConfig.DisplayMode.SKYWRITING
+					? ArtlyricsConfig.DisplayMode.HOVER
+					: ArtlyricsConfig.DisplayMode.SKYWRITING;
 			mod.settingsChanged();
 			config.save();
 			client.gui.setOverlayMessage(Component.translatable(config.displayMode.translationKey()), false);

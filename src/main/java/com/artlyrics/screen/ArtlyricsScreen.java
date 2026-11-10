@@ -10,13 +10,17 @@ import net.minecraft.client.gui.components.AbstractSliderButton;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.CycleButton;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Locale;
+import java.util.function.Consumer;
 import java.util.function.DoubleConsumer;
 import java.util.function.DoubleFunction;
+import java.util.function.Function;
 
 /** Artlyrics settings. Opened with the keybind (default K) or from Mod Menu. */
 public final class ArtlyricsScreen extends Screen {
@@ -39,64 +43,33 @@ public final class ArtlyricsScreen extends Screen {
 	protected void init() {
 		int left = width / 2 - W - GAP / 2;
 		int right = width / 2 + GAP / 2;
-		int y = Math.max(44, height / 2 - 108);
+		int y = Math.max(40, height / 2 - 100);
 		int row = H + GAP;
 
-		addRenderableWidget(CycleButton.onOffBuilder(config.enabled)
-				.create(left, y, W, H, Component.translatable("artlyrics.option.enabled"), (b, v) -> {
-					config.enabled = v;
-					changed();
-				}));
-		addRenderableWidget(CycleButton.onOffBuilder(config.topBar)
-				.create(right, y, W, H, Component.translatable("artlyrics.option.top_bar"), (b, v) -> {
-					config.topBar = v;
-					changed();
-				}));
+		toggle(left, y, "artlyrics.option.enabled", config.enabled, v -> config.enabled = v);
+		toggle(right, y, "artlyrics.option.song_card", config.songCard, v -> config.songCard = v);
 		y += row;
 
-		addRenderableWidget(CycleButton.<ArtlyricsConfig.DisplayMode>builder(v -> Component.translatable(v.translationKey()), config.displayMode)
-				.withValues(ArtlyricsConfig.DisplayMode.values())
-				.withTooltip(v -> net.minecraft.client.gui.components.Tooltip.create(Component.translatable(v.translationKey() + ".tooltip")))
-				.create(left, y, W, H, Component.translatable("artlyrics.option.display"), (b, v) -> {
-					config.displayMode = v;
-					changed();
-				}));
-		addRenderableWidget(CycleButton.onOffBuilder(config.curved)
-				.create(right, y, W, H, Component.translatable("artlyrics.option.curved"), (b, v) -> {
-					config.curved = v;
-					changed();
-				}));
+		choice(left, y, "artlyrics.option.mode", ArtlyricsConfig.DisplayMode.values(), config.displayMode,
+				v -> Component.translatable(v.translationKey()), v -> config.displayMode = v, v -> v.translationKey() + ".tooltip");
+		choice(right, y, "artlyrics.option.card_corner", ArtlyricsConfig.CardCorner.values(), config.cardCorner,
+				v -> Component.translatable(v.translationKey()), v -> config.cardCorner = v, null);
 		y += row;
 
-		addRenderableWidget(CycleButton.<ArtlyricsConfig.Animation>builder(v -> Component.translatable(v.translationKey()), config.animation)
-				.withValues(ArtlyricsConfig.Animation.values())
-				.create(left, y, W, H, Component.translatable("artlyrics.option.animation"), (b, v) -> {
-					config.animation = v;
-					changed();
-				}));
-		addRenderableWidget(CycleButton.onOffBuilder(config.shadow)
-				.create(right, y, W, H, Component.translatable("artlyrics.option.shadow"), (b, v) -> {
-					config.shadow = v;
-					changed();
-				}));
+		choice(left, y, "artlyrics.option.animation", ArtlyricsConfig.Animation.values(), config.animation,
+				v -> Component.translatable(v.translationKey()), v -> config.animation = v, v -> v.translationKey() + ".tooltip");
+		choice(right, y, "artlyrics.option.effect", ArtlyricsConfig.TextEffect.values(), config.textEffect,
+				v -> Component.translatable(v.translationKey()), v -> config.textEffect = v, null);
 		y += row;
 
-		addRenderableWidget(CycleButton.<LyricStyle>builder(v -> Component.translatable(v.translationKey()).withColor(v.from), config.style)
-				.withValues(LyricStyle.values())
-				.create(left, y, W, H, Component.translatable("artlyrics.option.style"), (b, v) -> {
-					config.style = v;
-					changed();
-				}));
+		choice(left, y, "artlyrics.option.palette", LyricStyle.values(), config.style,
+				v -> Component.translatable(v.translationKey()).withColor(v.from), v -> config.style = v, null);
 		addRenderableWidget(new Slider(right, y, "artlyrics.option.size", 0.5, 2.5, config.size,
 				v -> Math.round(v * 100) + "%", v -> config.size = (float) v));
 		y += row;
 
-		addRenderableWidget(CycleButton.<ArtlyricsConfig.TextFont>builder(v -> Component.translatable(v.translationKey()), config.font)
-				.withValues(ArtlyricsConfig.TextFont.values())
-				.create(left, y, W, H, Component.translatable("artlyrics.option.font"), (b, v) -> {
-					config.font = v;
-					changed();
-				}));
+		choice(left, y, "artlyrics.option.font", ArtlyricsConfig.TextFont.values(), config.font,
+				v -> Component.translatable(v.translationKey()), v -> config.font = v, null);
 		addRenderableWidget(new Slider(right, y, "artlyrics.option.sky_height", 5, 60, config.skyHeight,
 				v -> Math.round(v) + "°", v -> config.skyHeight = Math.round(v)));
 		y += row;
@@ -107,7 +80,7 @@ public final class ArtlyricsScreen extends Screen {
 		player.setMaxLength(40);
 		player.setValue(config.preferredPlayer);
 		player.setHint(Component.translatable("artlyrics.option.player.hint"));
-		player.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.translatable("artlyrics.option.player.tooltip")));
+		player.setTooltip(Tooltip.create(Component.translatable("artlyrics.option.player.tooltip")));
 		player.setResponder(v -> {
 			config.preferredPlayer = v.strip();
 			changed();
@@ -115,17 +88,37 @@ public final class ArtlyricsScreen extends Screen {
 		addRenderableWidget(player);
 		y += row;
 
+		toggle(left, y, "artlyrics.option.arc", config.arc, v -> config.arc = v);
 		addRenderableWidget(CycleButton.onOffBuilder(mod.tracker().isDemoActive())
-				.withTooltip(v -> net.minecraft.client.gui.components.Tooltip.create(Component.translatable("artlyrics.option.preview.tooltip")))
-				.create(left, y, W, H, Component.translatable("artlyrics.option.preview"), (b, v) -> mod.tracker().setDemoActive(v)));
-		addRenderableWidget(Button.builder(Component.translatable("artlyrics.option.refresh"), b -> mod.lyrics().refresh())
-				.bounds(right, y, W, H)
-				.build());
+				.withTooltip(v -> Tooltip.create(Component.translatable("artlyrics.option.demo.tooltip")))
+				.create(right, y, W, H, Component.translatable("artlyrics.option.demo"), (b, v) -> mod.tracker().setDemoActive(v)));
 		y += row + GAP;
 
-		addRenderableWidget(Button.builder(Component.translatable("gui.done"), b -> onClose())
-				.bounds(width / 2 - 100, y, 200, H)
+		addRenderableWidget(Button.builder(Component.translatable("artlyrics.option.refresh"), b -> mod.lyrics().refresh())
+				.bounds(left, y, W, H)
 				.build());
+		addRenderableWidget(Button.builder(Component.translatable("gui.done"), b -> onClose())
+				.bounds(right, y, W, H)
+				.build());
+	}
+
+	private void toggle(int x, int y, String key, boolean value, Consumer<Boolean> apply) {
+		addRenderableWidget(CycleButton.onOffBuilder(value).create(x, y, W, H, Component.translatable(key), (b, v) -> {
+			apply.accept(v);
+			changed();
+		}));
+	}
+
+	private <T> void choice(int x, int y, String key, T[] values, T value, Function<T, Component> label, Consumer<T> apply,
+							@Nullable Function<T, String> tooltipKey) {
+		CycleButton.Builder<T> builder = CycleButton.<T>builder(label, value).withValues(values);
+		if (tooltipKey != null) {
+			builder = builder.withTooltip(v -> Tooltip.create(Component.translatable(tooltipKey.apply(v))));
+		}
+		addRenderableWidget(builder.create(x, y, W, H, Component.translatable(key), (b, v) -> {
+			apply.accept(v);
+			changed();
+		}));
 	}
 
 	private void changed() {
@@ -135,8 +128,9 @@ public final class ArtlyricsScreen extends Screen {
 	@Override
 	public void render(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
 		super.render(graphics, mouseX, mouseY, delta);
-		graphics.drawCenteredString(font, title, width / 2, Math.max(12, height / 2 - 140), 0xFFFFFFFF);
-		graphics.drawCenteredString(font, statusLine(), width / 2, Math.max(26, height / 2 - 126), 0xFFB8B4C8);
+		int top = Math.max(40, height / 2 - 100);
+		graphics.drawCenteredString(font, title, width / 2, top - 30, 0xFFFFFFFF);
+		graphics.drawCenteredString(font, statusLine(), width / 2, top - 16, 0xFFB8B4C8);
 	}
 
 	private Component statusLine() {
@@ -148,8 +142,8 @@ public final class ArtlyricsScreen extends Screen {
 					: Component.translatable("artlyrics.status.nothing_playing");
 		}
 		LyricsManager.State state = mod.lyrics().state();
-		Component lyricsState = Component.translatable("artlyrics.status." + state.name().toLowerCase(java.util.Locale.ROOT));
-		return Component.literal("♪ " + track.displayName() + "  ·  ").append(lyricsState);
+		Component lyricsState = Component.translatable("artlyrics.status." + state.name().toLowerCase(Locale.ROOT));
+		return Component.literal("♫ " + track.displayName() + "  ·  ").append(lyricsState);
 	}
 
 	@Override

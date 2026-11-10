@@ -21,15 +21,20 @@ final class LineLayout {
 	static final float ROW_HEIGHT = 11f;
 	private static final FontDescription SMOOTH_FONT = new FontDescription.Resource(Identifier.withDefaultNamespace("uniform"));
 
-	/** One word's placement. {@code xCenter}/{@code y} are the word's center; {@code rowHalfWidth} is for the arc. */
-	record WordBox(int index, Component text, float width, float xCenter, float y, float rowHalfWidth) {
+	/**
+	 * One word's placement. {@code xCenter}/{@code y} are the word's center; {@code rowHalfWidth} is for the arc.
+	 * {@code raw} is the bare word, for animations that draw only part of it.
+	 */
+	record WordBox(int index, String raw, Component text, float width, float xCenter, float y, float rowHalfWidth) {
 	}
 
 	final List<WordBox> words;
+	final Style style;
 	final int revision;
 
-	private LineLayout(List<WordBox> words, int revision) {
+	private LineLayout(List<WordBox> words, Style style, int revision) {
 		this.words = words;
+		this.style = style;
 		this.revision = revision;
 	}
 
@@ -89,10 +94,10 @@ final class LineLayout {
 			for (int j = 0; j < indices.size(); j++) {
 				int i = indices.get(j);
 				float xCenter = offs[j] + trimWidths[i] / 2f - rowWidth / 2f;
-				boxes.add(new WordBox(i, texts[i], trimWidths[i], xCenter, y, Math.max(1f, rowWidth / 2f)));
+				boxes.add(new WordBox(i, lineWords.get(i).trimmed(), texts[i], trimWidths[i], xCenter, y, Math.max(1f, rowWidth / 2f)));
 			}
 		}
-		return new LineLayout(boxes, revision);
+		return new LineLayout(boxes, style, revision);
 	}
 
 	private static float[] toArray(List<Float> list) {

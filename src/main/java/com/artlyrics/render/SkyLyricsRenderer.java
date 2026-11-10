@@ -14,6 +14,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.network.chat.Component;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 import org.joml.Matrix4f;
@@ -25,12 +26,12 @@ import java.util.List;
 /**
  * Draws the lyrics as 3D text in the world.
  *
- * <p>Sky mode: each line is placed out in the sky in the direction you were looking when it started, at a
- * fixed angle above the horizon. Positions are relative to the camera (like the sky itself), so the text
- * never gets closer as you walk, but terrain in front of it still hides it. Every word faces the camera on
+ * <p>Skywriting: each line is written out in the sky in the direction you were looking when it started, at a
+ * fixed angle above the horizon, and slowly rises while it's up. Positions are relative to the camera (like the
+ * sky itself), so the text never gets closer as you walk, but terrain can still cover it. Every word faces the camera on
  * its own, so lines curve around you.
  *
- * <p>Front mode: lines float a few blocks in front of you, follow your view smoothly and are drawn on top
+ * <p>Hover: lines hang a few blocks away just above the crosshair, trail your view smoothly and are drawn on top
  * of everything.
  */
 public final class SkyLyricsRenderer {
@@ -39,17 +40,17 @@ public final class SkyLyricsRenderer {
 
 	/** Angular size of one font pixel, in radians, at size 1.0. */
 	private static final float SKY_RADIANS_PER_PX = 0.0042f;
-	private static final float FRONT_RADIANS_PER_PX = 0.005f;
+	private static final float HOVER_RADIANS_PER_PX = 0.005f;
 	private static final float SKY_MAX_ROW_PX = 200f;
-	private static final float FRONT_MAX_ROW_PX = 180f;
-	private static final float FRONT_DISTANCE = 4.0f;
-	/** Front-mode lines sit this many degrees above the crosshair. */
-	private static final float FRONT_RAISE_DEG = 9f;
+	private static final float HOVER_MAX_ROW_PX = 180f;
+	private static final float HOVER_DISTANCE = 4.0f;
+	/** Hovering lines sit this many degrees above the crosshair. */
+	private static final float HOVER_RAISE_DEG = 9f;
 
 	private final List<ShownLine> shown = new ArrayList<>();
-	private float frontYaw;
-	private float frontElev;
-	private boolean frontInitialized;
+	private float hoverYaw;
+	private float hoverElev;
+	private boolean hoverInitialized;
 	private long lastFrameNanos;
 	private boolean hasFrame;
 
@@ -113,19 +114,19 @@ public final class SkyLyricsRenderer {
 		}
 	}
 
-	/** Front-mode anchor: eases towards where the camera looks, so text trails your view a little. */
+	/** Hover anchor: eases towards where the camera looks, so text trails your view a little. */
 	private void followCamera(Camera camera, float dt) {
 		float targetYaw = camera.yRot();
-		float targetElev = -camera.xRot() + FRONT_RAISE_DEG;
-		if (!frontInitialized) {
-			frontYaw = targetYaw;
-			frontElev = targetElev;
-			frontInitialized = true;
+		float targetElev = -camera.xRot() + HOVER_RAISE_DEG;
+		if (!hoverInitialized) {
+			hoverYaw = targetYaw;
+			hoverElev = targetElev;
+			hoverInitialized = true;
 			return;
 		}
 		float k = 1f - (float) Math.exp(-dt * 7.0);
-		frontYaw += Mth.wrapDegrees(targetYaw - frontYaw) * k;
-		frontElev += (targetElev - frontElev) * k;
+		hoverYaw += Mth.wrapDegrees(targetYaw - hoverYaw) * k;
+		hoverElev += (targetElev - hoverElev) * k;
 	}
 
 	private void updateShownLines(Artlyrics mod, Camera camera, long timeMs, long now) {
@@ -178,82 +179,99 @@ public final class SkyLyricsRenderer {
 
 	private void drawLine(ShownLine shownLine, ArtlyricsConfig config, int revision, Font font, PoseStack poseStack,
 						  MultiBufferSource buffers, long timeMs, long now, double seconds) {
-		boolean sky = config.displayMode == ArtlyricsConfig.DisplayMode.SKY;
+		boolean sky = config.displayMode == ArtlyricsConfig.DisplayMode.SKYWRITING;
 		if (shownLine.layout == null || shownLine.layout.revision != revision || shownLine.layoutMode != config.displayMode) {
-			shownLine.layout = LineLayout.build(shownLine.line, font, config, sky ? SKY_MAX_ROW_PX : FRONT_MAX_ROW_PX, revision);
+			shownLine.layout = LineLayout.build(shownLine.line, font, config, sky ? SKY_MAX_ROW_PX : HOVER_MAX_ROW_PX, revision);
 			shownLine.layoutMode = config.displayMode;
 		}
+		LyricLine line = shownLine.line;
 
 		float fade = shownLine.fading() ? 1f - Easing.clamp01((now - shownLine.fadeStartNanos) / (float) FADE_NANOS) : 1f;
-		float drift = 1f - fade;
+		float leaving = 1f - fade;
+		// Skywriting rises slowly while it's up, like smoke trails drifting off; leaving lines lift away faster.
+		float drift = sky ? Math.min(2.5f, Math.max(0f, (timeMs - line.startMs()) / 1000f) * 0.25f) : 0f;
 
 		Placement p = new Placement();
 		p.sky = sky;
-		p.yaw = sky ? shownLine.anchorYaw : frontYaw;
-		p.elev = (sky ? shownLine.anchorElev : frontElev) + drift * (sky ? 3f : 2f);
-		p.distance = sky ? skyDistance() : FRONT_DISTANCE;
-		p.radPerPx = (sky ? SKY_RADIANS_PER_PX : FRONT_RADIANS_PER_PX) * config.size;
-		p.bendPx = config.curved ? (sky ? 10f : 5f) : 0f;
-		p.shadow = config.shadow;
+		p.yaw = sky ? shownLine.anchorYaw : hoverYaw;
+		p.elev = (sky ? shownLine.anchorElev : hoverElev) + drift + leaving * (sky ? 3f : 2f);
+		p.distance = sky ? skyDistance() : HOVER_DISTANCE;
+		p.radPerPx = (sky ? SKY_RADIANS_PER_PX : HOVER_RADIANS_PER_PX) * config.size;
+		p.bendPx = config.arc ? (sky ? 10f : 5f) : 0f;
+		p.effect = config.textEffect;
 
-		LyricLine line = shownLine.line;
 		List<LyricWord> words = line.words();
 		int n = words.size();
 		LyricStyle look = config.style;
+		LineLayout layout = shownLine.layout;
 
-		if (config.animation == ArtlyricsConfig.Animation.ONE_WORD) {
+		if (config.animation == ArtlyricsConfig.Animation.SPOTLIGHT) {
 			int wi = line.wordIndexAt(timeMs);
-			if (wi < 0) {
-				return;
-			}
-			LyricWord w = words.get(wi);
-			LineLayout.WordBox box = findBox(shownLine.layout, wi);
+			LineLayout.WordBox box = wi < 0 ? null : findBox(layout, wi);
 			if (box == null) {
 				return;
 			}
-			float pop = Easing.clamp01((timeMs - w.startMs()) / 220f);
-			float scale = 2.0f * (0.75f + 0.25f * Easing.outBack(pop));
-			float alpha = Easing.outCubic(pop) * fade;
-			int rgb = LyricStyle.lerpRgb(look.colorAt(n > 1 ? wi / (float) (n - 1) : 0.5f, seconds), look.highlight, 0.35f);
-			drawWord(poseStack, buffers, font, box, 0f, 0f, 1f, scale, 0f, ARGB.color(alpha, rgb), p);
+			float in = Easing.clamp01((timeMs - words.get(wi).startMs()) / 240f);
+			float scale = 2.2f * (0.85f + 0.15f * Easing.outCubic(in));
+			float alpha = Easing.outCubic(in) * fade;
+			int rgb = LyricStyle.lerpRgb(look.colorAt(n > 1 ? wi / (float) (n - 1) : 0.5f, seconds), look.accent, 0.3f);
+			drawWord(poseStack, buffers, font, box, box.text(), 0f, 0f, 1f, scale, 0f, ARGB.color(alpha, rgb), p);
 			return;
 		}
 
-		for (LineLayout.WordBox box : shownLine.layout.words) {
+		for (LineLayout.WordBox box : layout.words) {
 			LyricWord w = words.get(box.index());
-			float gradient = n > 1 ? box.index() / (float) (n - 1) : 0.5f;
-			int rgb = look.colorAt(gradient, seconds);
-			boolean active = w.isActiveAt(timeMs);
+			int base = look.colorAt(n > 1 ? box.index() / (float) (n - 1) : 0.5f, seconds);
 			boolean sung = timeMs >= w.startMs();
+			boolean active = w.isActiveAt(timeMs);
+			long since = timeMs - w.startMs();
 
-			float alpha;
+			Component text = box.text();
+			int rgb = base;
+			float alpha = 1f;
 			float scale = 1f;
 			float rise = 0f;
-			if (config.animation == ArtlyricsConfig.Animation.WORD_BY_WORD) {
-				if (!sung) {
-					continue;
+			switch (config.animation) {
+				case BLOOM -> {
+					if (!sung) {
+						continue;
+					}
+					// Opens up from small and bright, then settles into the palette color.
+					float in = Easing.clamp01(since / 320f);
+					alpha = Easing.outCubic(in);
+					scale = 0.55f + 0.45f * Easing.outBack(in);
+					rgb = LyricStyle.lerpRgb(look.accent, base, Easing.clamp01(since / 500f));
 				}
-				float in = Easing.clamp01((timeMs - w.startMs()) / 260f);
-				alpha = Easing.outCubic(in);
-				rise = (1f - Easing.outCubic(in)) * 7f;
-				scale = 0.8f + 0.2f * Easing.outBack(in);
-			} else { // KARAOKE
-				float lineIn = Easing.clamp01((timeMs - line.startMs()) / 300f);
-				alpha = lineIn * (sung ? 1f : 0.4f);
-				if (!sung) {
-					rgb = LyricStyle.lerpRgb(rgb, 0x8A8A9A, 0.45f);
+				case TYPEWRITER -> {
+					if (!sung) {
+						continue;
+					}
+					int letters = box.raw().codePointCount(0, box.raw().length());
+					long perLetter = Math.max(25, Math.min(90, (w.endMs() - w.startMs()) / Math.max(1, letters)));
+					int visible = (int) Math.min(letters, 1 + since / perLetter);
+					if (visible < letters) {
+						int cut = box.raw().offsetByCodePoints(0, visible);
+						text = Component.literal(box.raw().substring(0, cut)).withStyle(layout.style);
+					}
+					if (active) {
+						rgb = LyricStyle.lerpRgb(base, look.accent, 0.4f);
+					}
 				}
-			}
-			if (active) {
-				float pulse = Easing.clamp01((timeMs - w.startMs()) / 180f);
-				rgb = LyricStyle.lerpRgb(rgb, look.highlight, 0.55f);
-				scale *= 1f + 0.08f * (1f - pulse) + 0.04f;
+				default -> { // SWEEP
+					alpha = Easing.clamp01((timeMs - line.startMs()) / 300f) * (sung ? 1f : 0.35f);
+					if (!sung) {
+						rgb = LyricStyle.lerpRgb(base, 0x7C7F8C, 0.5f);
+					} else if (active) {
+						rgb = LyricStyle.lerpRgb(base, look.accent, 0.5f);
+						rise = -1.5f * (1f - Easing.clamp01(since / 200f));
+					}
+				}
 			}
 			alpha *= fade;
 			if (alpha <= 0.02f) {
 				continue;
 			}
-			drawWord(poseStack, buffers, font, box, box.xCenter(), box.y(), box.rowHalfWidth(), scale, rise, ARGB.color(alpha, rgb), p);
+			drawWord(poseStack, buffers, font, box, text, box.xCenter(), box.y(), box.rowHalfWidth(), scale, rise, ARGB.color(alpha, rgb), p);
 		}
 	}
 
@@ -274,10 +292,16 @@ public final class SkyLyricsRenderer {
 		float distance;
 		float radPerPx;
 		float bendPx;
-		boolean shadow;
+		ArtlyricsConfig.TextEffect effect;
 	}
 
-	private static void drawWord(PoseStack poseStack, MultiBufferSource buffers, Font font, LineLayout.WordBox box,
+	private static final int[][] OUTLINE_OFFSETS = {{-1, -1}, {0, -1}, {1, -1}, {-1, 0}, {1, 0}, {-1, 1}, {0, 1}, {1, 1}};
+
+	/**
+	 * Draws {@code text} at a word's place. The word is positioned by its full width ({@code box}), so partially
+	 * typed words grow to the right instead of shifting around.
+	 */
+	private static void drawWord(PoseStack poseStack, MultiBufferSource buffers, Font font, LineLayout.WordBox box, Component text,
 								 float xCenterPx, float yPx, float rowHalfWidth, float scale, float risePx, int argb, Placement p) {
 		// Arc: words in the middle of a row sit a little higher than the ends.
 		float u = Mth.clamp(xCenterPx / rowHalfWidth, -1f, 1f);
@@ -292,16 +316,33 @@ public final class SkyLyricsRenderer {
 
 		float left = -box.width() / 2f;
 		float top = -4.5f + risePx / scale;
+		int alpha = ARGB.alpha(argb);
+		int light = LightTexture.FULL_BRIGHT;
+		int outline = ARGB.color(alpha, LyricStyle.lerpRgb(argb & 0xFFFFFF, 0x000000, 0.78f));
+
 		if (p.sky) {
-			font.drawInBatch(box.text(), left, top, argb, p.shadow, matrix, buffers, Font.DisplayMode.POLYGON_OFFSET, 0, LightTexture.FULL_BRIGHT);
-		} else {
-			// Drawn on top of the world; a manual shadow keeps the draw order (shadow first) under control.
-			if (p.shadow) {
-				int shadow = ARGB.color(ARGB.alpha(argb), ARGB.scaleRGB(argb, 0.25f) & 0xFFFFFF);
-				font.drawInBatch(box.text(), left + 1f, top + 1f, shadow, false, matrix, buffers, Font.DisplayMode.SEE_THROUGH, 0, LightTexture.FULL_BRIGHT);
+			switch (p.effect) {
+				case OUTLINE -> font.drawInBatch8xOutline(text.getVisualOrderText(), left, top, argb, outline, matrix, buffers, light);
+				case SHADOW -> font.drawInBatch(text, left, top, argb, true, matrix, buffers, Font.DisplayMode.POLYGON_OFFSET, 0, light);
+				case NONE -> font.drawInBatch(text, left, top, argb, false, matrix, buffers, Font.DisplayMode.POLYGON_OFFSET, 0, light);
 			}
-			font.drawInBatch(box.text(), left, top, argb, false, matrix, buffers, Font.DisplayMode.SEE_THROUGH, 0, LightTexture.FULL_BRIGHT);
+			return;
 		}
+
+		// Hover text is drawn on top of the world, so effects are drawn by hand first, then the text over them.
+		Font.DisplayMode mode = Font.DisplayMode.SEE_THROUGH;
+		switch (p.effect) {
+			case SHADOW -> font.drawInBatch(text, left + 1f, top + 1f, ARGB.color(alpha, ARGB.scaleRGB(argb, 0.25f) & 0xFFFFFF),
+					false, matrix, buffers, mode, 0, light);
+			case OUTLINE -> {
+				for (int[] o : OUTLINE_OFFSETS) {
+					font.drawInBatch(text, left + o[0], top + o[1], outline, false, matrix, buffers, mode, 0, light);
+				}
+			}
+			case NONE -> {
+			}
+		}
+		font.drawInBatch(text, left, top, argb, false, matrix, buffers, mode, 0, light);
 	}
 
 	private static float skyDistance() {
@@ -314,7 +355,7 @@ public final class SkyLyricsRenderer {
 	/** Clears what's on screen, e.g. after switching worlds. */
 	public void reset() {
 		shown.clear();
-		frontInitialized = false;
+		hoverInitialized = false;
 		hasFrame = false;
 	}
 }
