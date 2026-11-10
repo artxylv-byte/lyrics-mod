@@ -44,15 +44,22 @@ fabricApi {
     }
 }
 
-processResources {
-    inputs.property 'version', project.version
-    inputs.property 'minecraft_version', project.minecraft_version
-    inputs.property 'loader_version', project.loader_version
+sourceSets {
+    main {
+        java.srcDir "src/compat/${project.compat}/java"
+    }
+}
 
+processResources {
+    def props = [
+        version             : project.version,
+        minecraft_dependency: project.minecraft_dependency,
+        java_version        : project.java_version,
+        loader_version      : project.loader_version,
+    ]
+    inputs.properties props
     filesMatching('fabric.mod.json') {
-        expand 'version': project.version,
-               'minecraft_version': project.minecraft_version,
-               'loader_version': project.loader_version
+        expand props
     }
 }
 
