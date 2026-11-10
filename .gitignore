@@ -22,3 +22,6 @@ bin/
 # OS
 .DS_Store
 Thumbs.db
+
+# Minecraft logs from dev runs
+logs/

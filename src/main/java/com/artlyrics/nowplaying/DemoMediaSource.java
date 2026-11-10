@@ -12,6 +12,8 @@ public final class DemoMediaSource implements MediaSource {
 	public static final long DURATION_MS = 32_000;
 
 	private long startNanos = System.nanoTime();
+	/** Position the demo is frozen at, or -1 while it plays. */
+	private long pausedAtMs = -1;
 
 	@Override
 	public void start() {
@@ -20,11 +22,21 @@ public final class DemoMediaSource implements MediaSource {
 
 	public void restart() {
 		startNanos = System.nanoTime();
+		pausedAtMs = -1;
+	}
+
+	/** Jumps to {@code positionMs} into the demo song; with {@code pause} it stays frozen there. */
+	public void seek(long positionMs, boolean pause) {
+		startNanos = System.nanoTime() - positionMs * 1_000_000L;
+		pausedAtMs = pause ? positionMs : -1;
 	}
 
 	@Override
 	public @Nullable NowPlaying current() {
 		long now = System.nanoTime();
+		if (pausedAtMs >= 0) {
+			return new NowPlaying(PLAYER, TITLE, ARTIST, "", DURATION_MS, pausedAtMs, false, now);
+		}
 		long pos = ((now - startNanos) / 1_000_000L) % DURATION_MS;
 		return new NowPlaying(PLAYER, TITLE, ARTIST, "", DURATION_MS, pos, true, now);
 	}

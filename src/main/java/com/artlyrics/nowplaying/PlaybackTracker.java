@@ -19,6 +19,7 @@ public final class PlaybackTracker {
 	private @Nullable NowPlaying track;
 	private double clockMs;
 	private long lastFrameNanos;
+	private boolean hasFrame;
 	private long trackFirstSeenNanos;
 
 	public PlaybackTracker(MediaSource system) {
@@ -48,12 +49,19 @@ public final class PlaybackTracker {
 		demoActive = active;
 	}
 
+	/** Turns the demo on and jumps to {@code positionMs}; with {@code pause} it stays frozen there. */
+	public void seekDemo(long positionMs, boolean pause) {
+		setDemoActive(true);
+		demo.seek(positionMs, pause);
+	}
+
 	/** Advances the clock to {@code nowNanos}. */
 	public void frame(long nowNanos) {
 		NowPlaying sample = demoActive ? demo.current() : system.current();
 		if (sample == null || sample.title().isBlank()) {
 			track = null;
 			lastFrameNanos = nowNanos;
+			hasFrame = true;
 			return;
 		}
 
@@ -68,8 +76,9 @@ public final class PlaybackTracker {
 			target = (nowNanos - trackFirstSeenNanos) / 1_000_000.0;
 		}
 
-		double dt = lastFrameNanos == 0 ? 0 : Math.max(0, (nowNanos - lastFrameNanos) / 1_000_000.0);
+		double dt = hasFrame ? Math.max(0, (nowNanos - lastFrameNanos) / 1_000_000.0) : 0;
 		lastFrameNanos = nowNanos;
+		hasFrame = true;
 
 		if (newTrack || !sample.playing() || Math.abs(target - clockMs) > SNAP_MS) {
 			clockMs = target;

@@ -32,6 +32,18 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
+// Client game test: launches Minecraft, plays the built-in demo song and saves screenshots of each
+// display mode to run/clientGameTest/screenshots. Run with: ./gradlew runClientGameTest
+fabricApi {
+    configureTests {
+        createSourceSet = true
+        modId = 'artlyrics-gametest'
+        enableGameTests = false
+        enableClientGameTests = true
+        eula = true
+    }
+}
+
 processResources {
     inputs.property 'version', project.version
     inputs.property 'minecraft_version', project.minecraft_version

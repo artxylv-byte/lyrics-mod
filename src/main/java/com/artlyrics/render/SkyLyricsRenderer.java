@@ -16,7 +16,7 @@ import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
-import org.joml.Quaternionf;
+import org.joml.Matrix4f;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -51,6 +51,7 @@ public final class SkyLyricsRenderer {
 	private float frontElev;
 	private boolean frontInitialized;
 	private long lastFrameNanos;
+	private boolean hasFrame;
 
 	private static final class ShownLine {
 		final Lyrics lyrics;
@@ -87,8 +88,9 @@ public final class SkyLyricsRenderer {
 		mod.tracker().frame(now);
 
 		Camera camera = mc.gameRenderer.getMainCamera();
-		float dt = lastFrameNanos == 0 ? 0 : Math.min(0.25f, (now - lastFrameNanos) / 1e9f);
+		float dt = hasFrame ? Math.min(0.25f, (now - lastFrameNanos) / 1e9f) : 0f;
 		lastFrameNanos = now;
+		hasFrame = true;
 		followCamera(camera, dt);
 
 		if (!config.enabled) {
@@ -284,28 +286,12 @@ public final class SkyLyricsRenderer {
 
 		float yawDeg = p.yaw + (float) Math.toDegrees(xCenterPx * p.radPerPx);
 		float elevDeg = p.elev + (float) Math.toDegrees((arcPx - yPx) * p.radPerPx);
-		float yawRad = yawDeg * Mth.DEG_TO_RAD;
-		float elevRad = elevDeg * Mth.DEG_TO_RAD;
-
-		// Same direction convention as Vec3.directionFromRotation(xRot = -elev, yRot = yaw).
-		float cosElev = Mth.cos(elevRad);
-		float x = -Mth.sin(yawRad) * cosElev;
-		float y = Mth.sin(elevRad);
-		float z = Mth.cos(yawRad) * cosElev;
-
-		poseStack.pushPose();
-		poseStack.translate(x * p.distance, y * p.distance, z * p.distance);
-		// Face the camera exactly like a camera looking at this word would (see Camera#setRotation).
-		poseStack.mulPose(new Quaternionf().rotationYXZ((float) Math.PI - yawRad, elevRad, 0f));
-		if (slope != 0f) {
-			poseStack.mulPose(new Quaternionf().rotationZ((float) Math.atan(slope) * 0.6f));
-		}
-		float s = p.distance * p.radPerPx * scale;
-		poseStack.scale(s, -s, s);
+		float roll = slope != 0f ? (float) Math.atan(slope) * 0.6f : 0f;
+		Matrix4f matrix = SkyGeometry.wordMatrix(poseStack.last().pose(), yawDeg, elevDeg, p.distance, roll,
+				p.distance * p.radPerPx * scale);
 
 		float left = -box.width() / 2f;
 		float top = -4.5f + risePx / scale;
-		var matrix = poseStack.last().pose();
 		if (p.sky) {
 			font.drawInBatch(box.text(), left, top, argb, p.shadow, matrix, buffers, Font.DisplayMode.POLYGON_OFFSET, 0, LightTexture.FULL_BRIGHT);
 		} else {
@@ -316,7 +302,6 @@ public final class SkyLyricsRenderer {
 			}
 			font.drawInBatch(box.text(), left, top, argb, false, matrix, buffers, Font.DisplayMode.SEE_THROUGH, 0, LightTexture.FULL_BRIGHT);
 		}
-		poseStack.popPose();
 	}
 
 	private static float skyDistance() {
@@ -330,6 +315,6 @@ public final class SkyLyricsRenderer {
 	public void reset() {
 		shown.clear();
 		frontInitialized = false;
-		lastFrameNanos = 0;
+		hasFrame = false;
 	}
 }
