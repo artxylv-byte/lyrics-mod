@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "artlyrics",
+  "version": "${version}",
+  "name": "Artlyrics",
+  "description": "Live, synced lyrics for the song you're listening to, written across the Minecraft sky.",
+  "authors": ["artxylv-byte"],
+  "contact": {
+    "sources": "https://github.com/artxylv-byte/lyrics-mod",
+    "issues": "https://github.com/artxylv-byte/lyrics-mod/issues"
+  },
+  "icon": "assets/artlyrics/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["com.artlyrics.ArtlyricsClient"],
+    "modmenu": ["com.artlyrics.compat.ModMenuIntegration"]
+  },
+  "depends": {
+    "fabricloader": ">=0.17.0",
+    "minecraft": "~1.21.11",
+    "java": ">=21",
+    "fabric-api": "*"
+  },
+  "suggests": {
+    "modmenu": "*"
+  }
+}

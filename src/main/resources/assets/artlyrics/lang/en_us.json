@@ -1,0 +1,60 @@
+{
+  "artlyrics.screen.title": "Artlyrics",
+
+  "artlyrics.option.enabled": "Lyrics",
+  "artlyrics.option.top_bar": "Top bar",
+  "artlyrics.option.display": "Display",
+  "artlyrics.option.curved": "Curved lines",
+  "artlyrics.option.animation": "Animation",
+  "artlyrics.option.shadow": "Shadow",
+  "artlyrics.option.style": "Style",
+  "artlyrics.option.size": "Size",
+  "artlyrics.option.font": "Font",
+  "artlyrics.option.sky_height": "Sky height",
+  "artlyrics.option.offset": "Sync offset",
+  "artlyrics.option.player": "Preferred player",
+  "artlyrics.option.player.hint": "spotify",
+  "artlyrics.option.player.tooltip": "When several apps are playing, follow the one whose name contains this.",
+  "artlyrics.option.preview": "Preview",
+  "artlyrics.option.preview.tooltip": "Plays a built-in demo song so you can try the look without music. Close this screen to see it.",
+  "artlyrics.option.refresh": "Search lyrics again",
+
+  "artlyrics.mode.sky": "In the sky",
+  "artlyrics.mode.sky.tooltip": "Words appear in 3D in the sky. Blocks in front hide them.",
+  "artlyrics.mode.front": "In front of you",
+  "artlyrics.mode.front.tooltip": "Words float in front of you wherever you look and are never hidden (best for PvP).",
+
+  "artlyrics.animation.word_by_word": "Word by word",
+  "artlyrics.animation.karaoke": "Karaoke",
+  "artlyrics.animation.one_word": "One word at a time",
+
+  "artlyrics.style.lavender": "Lavender",
+  "artlyrics.style.dreamy": "Dreamy",
+  "artlyrics.style.sunset": "Sunset",
+  "artlyrics.style.ice": "Ice",
+  "artlyrics.style.royal": "Royal",
+  "artlyrics.style.mint": "Mint",
+  "artlyrics.style.classic": "Classic",
+  "artlyrics.style.rainbow": "Rainbow",
+
+  "artlyrics.font.default": "Minecraft",
+  "artlyrics.font.smooth": "Smooth",
+
+  "artlyrics.status.nothing_playing": "Play a song in Spotify (or any player) to start",
+  "artlyrics.status.idle": "Nothing playing",
+  "artlyrics.status.waiting": "Searching lyrics…",
+  "artlyrics.status.searching": "Searching lyrics…",
+  "artlyrics.status.found": "Lyrics found",
+  "artlyrics.status.instrumental": "Instrumental",
+  "artlyrics.status.unsynced_only": "Only unsynced lyrics exist",
+  "artlyrics.status.not_found": "No lyrics found",
+  "artlyrics.status.error": "Couldn't reach LRCLIB",
+
+  "artlyrics.toast.on": "Artlyrics: lyrics on",
+  "artlyrics.toast.off": "Artlyrics: lyrics off",
+
+  "key.category.artlyrics.main": "Artlyrics",
+  "key.artlyrics.menu": "Open Artlyrics settings",
+  "key.artlyrics.toggle": "Toggle lyrics",
+  "key.artlyrics.mode": "Switch sky / front mode"
+}
