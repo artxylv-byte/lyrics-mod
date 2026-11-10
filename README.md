@@ -123,6 +123,12 @@ src/main/resources/assets/artlyrics/
 src/gametest/              client game test that takes screenshots
 ```
 
+## ArtWeb (a second mod in this repository)
+
+The `artweb/` folder holds **ArtWeb**, a separate mod for Minecraft 1.21.9 / 1.21.10 that adds Web Screen
+blocks: place one, type a web address, and the page appears on the block for everyone nearby. See
+[artweb/README.md](artweb/README.md). Its jar is in `downloads/` next to the Artlyrics jars.
+
 ## Credits
 
 Lyrics are provided by [LRCLIB](https://lrclib.net). The demo song's lyrics were written for this mod.

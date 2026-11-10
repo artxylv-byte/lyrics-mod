@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "artweb",
+  "version": "${version}",
+  "name": "ArtWeb",
+  "description": "Web Screen blocks: place a screen, open a website and browse it in Minecraft.",
+  "authors": ["artxylv-byte"],
+  "contact": {
+    "sources": "https://github.com/artxylv-byte/lyrics-mod"
+  },
+  "icon": "assets/artweb/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["com.artweb.ArtWeb"],
+    "client": ["com.artweb.client.ArtWebClient"]
+  },
+  "depends": {
+    "fabricloader": ">=0.17.0",
+    "minecraft": ">=1.21.9 <1.21.11",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "block.artweb.web_screen": "Web Screen",
+  "artweb.browser.title": "Web Screen",
+  "artweb.browser.address": "Address",
+  "artweb.browser.hint": "Type a web address or search words",
+  "artweb.browser.go": "Go",
+  "artweb.browser.back": "Back",
+  "artweb.browser.forward": "Forward",
+  "artweb.browser.reload": "Reload",
+  "artweb.browser.home": "Home page",
+  "artweb.browser.size": "Size: %s × %s blocks",
+  "artweb.browser.narrower": "Narrower",
+  "artweb.browser.wider": "Wider",
+  "artweb.browser.shorter": "Shorter",
+  "artweb.browser.taller": "Taller"
+}

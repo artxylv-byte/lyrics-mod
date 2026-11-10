@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "artweb-gametest",
+  "version": "1.0.0",
+  "name": "ArtWeb Game Tests",
+  "environment": "client",
+  "entrypoints": {
+    "fabric-client-gametest": [
+      "com.artweb.gametest.ArtWebScreenshotTest"
+    ]
+  },
+  "depends": {
+    "artweb": "*"
+  }
+}

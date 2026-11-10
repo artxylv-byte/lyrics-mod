@@ -1,0 +1,12 @@
+{
+  "parent": "minecraft:block/cube",
+  "textures": {
+    "particle": "artweb:block/web_screen_side",
+    "north": "artweb:block/web_screen_front",
+    "south": "artweb:block/web_screen_back",
+    "east": "artweb:block/web_screen_side",
+    "west": "artweb:block/web_screen_side",
+    "up": "artweb:block/web_screen_side",
+    "down": "artweb:block/web_screen_side"
+  }
+}

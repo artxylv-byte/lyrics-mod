@@ -1,0 +1,70 @@
+plugins {
+    id 'net.fabricmc.fabric-loom-remap' version "${loom_version}"
+}
+
+version = "${project.mod_version}+mc${project.minecraft_version}"
+group = project.maven_group
+base {
+    archivesName = project.archives_base_name
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings loom.officialMojangMappings()
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
+    // HTML parser (MIT licence), bundled inside the mod jar.
+    implementation "org.jsoup:jsoup:${project.jsoup_version}"
+    include "org.jsoup:jsoup:${project.jsoup_version}"
+
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+processResources {
+    inputs.property 'version', project.version
+    filesMatching('fabric.mod.json') {
+        expand 'version': project.version
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.release = 21
+    it.options.encoding = 'UTF-8'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+// Client game test: ./gradlew -p artweb runClientGameTest
+fabricApi {
+    configureTests {
+        createSourceSet = true
+        modId = 'artweb-gametest'
+        enableGameTests = false
+        enableClientGameTests = true
+        eula = true
+    }
+}
+
+// Starts the finished jar like a normal Fabric install: ./gradlew -p artweb prodRunClient
+configurations {
+    productionMods {
+        transitive = false
+    }
+}
+
+dependencies {
+    productionMods "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+}
+
+tasks.register('prodRunClient', net.fabricmc.loom.task.prod.ClientProductionRunTask) {
+    mods.from(configurations.productionMods)
+    mods.from(tasks.named('remapJar'))
+    runDir = file('build/prod-run')
+    if (project.hasProperty('world')) {
+        programArgs.addAll('--quickPlaySingleplayer', project.property('world'))
+    }
+}
