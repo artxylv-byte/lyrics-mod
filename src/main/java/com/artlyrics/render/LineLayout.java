@@ -1,31 +1,29 @@
 package com.artlyrics.render;
 
 import com.artlyrics.config.ArtlyricsConfig;
-import com.artlyrics.config.LyricStyle;
 import com.artlyrics.lyrics.LyricLine;
 import com.artlyrics.lyrics.LyricWord;
 import net.minecraft.client.gui.Font;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.FontDescription;
 import net.minecraft.network.chat.Style;
-import net.minecraft.resources.Identifier;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 /**
- * Where each word of a line goes, in font pixels relative to the center of the text block.
+ * Where each word (and each letter) of a line goes, in font pixels relative to the center of the text block.
  * Long lines wrap into several rows.
  */
 final class LineLayout {
 	static final float ROW_HEIGHT = 11f;
-	private static final FontDescription SMOOTH_FONT = new FontDescription.Resource(Identifier.withDefaultNamespace("uniform"));
 
 	/**
 	 * One word's placement. {@code xCenter}/{@code y} are the word's center; {@code rowHalfWidth} is for the arc.
-	 * {@code raw} is the bare word, for animations that draw only part of it.
+	 * {@code letters}/{@code letterX} are the word's letters and their offsets from the word's left edge.
 	 */
-	record WordBox(int index, String raw, Component text, float width, float xCenter, float y, float rowHalfWidth) {
+	record WordBox(int index, String raw, Component text, float width, float xCenter, float y, float rowHalfWidth,
+				   Component[] letters, float[] letterX) {
 	}
 
 	final List<WordBox> words;
@@ -38,63 +36,70 @@ final class LineLayout {
 		this.revision = revision;
 	}
 
-	static Style textStyle(ArtlyricsConfig config) {
-		LyricStyle look = config.style;
-		Style style = Style.EMPTY.withBold(look.bold).withItalic(look.italic);
-		if (config.font == ArtlyricsConfig.TextFont.SMOOTH) {
-			style = style.withFont(SMOOTH_FONT);
-		}
-		return style;
+	static String display(String word, ArtlyricsConfig config) {
+		return config.uppercase ? word.toUpperCase(Locale.ROOT) : word;
 	}
 
 	static LineLayout build(LyricLine line, Font font, ArtlyricsConfig config, float maxRowWidth, int revision) {
-		Style style = textStyle(config);
+		Style style = Fonts.lyricStyle(config, false);
 		List<LyricWord> lineWords = line.words();
+		int n = lineWords.size();
 
-		// Measure and wrap greedily.
-		List<List<Integer>> rows = new ArrayList<>();
+		String[] raws = new String[n];
+		Component[] texts = new Component[n];
+		float[] fullWidths = new float[n];
+		float[] trimWidths = new float[n];
+		for (int i = 0; i < n; i++) {
+			LyricWord w = lineWords.get(i);
+			raws[i] = display(w.trimmed(), config);
+			texts[i] = Component.literal(raws[i]).withStyle(style);
+			trimWidths[i] = font.width(texts[i]);
+			fullWidths[i] = font.width(Component.literal(display(w.text(), config)).withStyle(style));
+		}
+
+		// Wrap greedily into rows.
+		List<int[]> rows = new ArrayList<>(); // {firstIndex, lastIndex}
 		List<float[]> rowOffsets = new ArrayList<>();
-		float[] fullWidths = new float[lineWords.size()];
-		float[] trimWidths = new float[lineWords.size()];
-		Component[] texts = new Component[lineWords.size()];
-
-		List<Integer> row = new ArrayList<>();
+		int rowStart = 0;
 		List<Float> offsets = new ArrayList<>();
 		float x = 0;
-		for (int i = 0; i < lineWords.size(); i++) {
-			LyricWord w = lineWords.get(i);
-			Component trimmed = Component.literal(w.trimmed()).withStyle(style);
-			texts[i] = trimmed;
-			trimWidths[i] = font.width(trimmed);
-			fullWidths[i] = font.width(Component.literal(w.text()).withStyle(style));
-			if (!row.isEmpty() && x + trimWidths[i] > maxRowWidth) {
-				rows.add(row);
+		for (int i = 0; i < n; i++) {
+			if (i > rowStart && x + trimWidths[i] > maxRowWidth) {
+				rows.add(new int[] {rowStart, i - 1});
 				rowOffsets.add(toArray(offsets));
-				row = new ArrayList<>();
-				offsets = new ArrayList<>();
+				rowStart = i;
+				offsets.clear();
 				x = 0;
 			}
-			row.add(i);
 			offsets.add(x);
 			x += fullWidths[i];
 		}
-		if (!row.isEmpty()) {
-			rows.add(row);
+		if (n > 0) {
+			rows.add(new int[] {rowStart, n - 1});
 			rowOffsets.add(toArray(offsets));
 		}
 
-		List<WordBox> boxes = new ArrayList<>(lineWords.size());
+		List<WordBox> boxes = new ArrayList<>(n);
 		float firstRowY = -(rows.size() - 1) / 2f * ROW_HEIGHT;
 		for (int r = 0; r < rows.size(); r++) {
-			List<Integer> indices = rows.get(r);
+			int first = rows.get(r)[0];
+			int last = rows.get(r)[1];
 			float[] offs = rowOffsets.get(r);
-			int last = indices.get(indices.size() - 1);
 			float rowWidth = offs[offs.length - 1] + trimWidths[last];
 			float y = firstRowY + r * ROW_HEIGHT;
-			for (int j = 0; j < indices.size(); j++) {
-				int i = indices.get(j);
-				float xCenter = offs[j] + trimWidths[i] / 2f - rowWidth / 2f;
-				boxes.add(new WordBox(i, lineWords.get(i).trimmed(), texts[i], trimWidths[i], xCenter, y, Math.max(1f, rowWidth / 2f)));
+			for (int i = first; i <= last; i++) {
+				float xCenter = offs[i - first] + trimWidths[i] / 2f - rowWidth / 2f;
+				int[] cps = raws[i].codePoints().toArray();
+				Component[] letters = new Component[cps.length];
+				float[] letterX = new float[cps.length];
+				StringBuilder prefix = new StringBuilder();
+				for (int c = 0; c < cps.length; c++) {
+					letterX[c] = font.width(Component.literal(prefix.toString()).withStyle(style));
+					String letter = new String(cps, c, 1);
+					letters[c] = Component.literal(letter).withStyle(style);
+					prefix.append(letter);
+				}
+				boxes.add(new WordBox(i, raws[i], texts[i], trimWidths[i], xCenter, y, Math.max(1f, rowWidth / 2f), letters, letterX));
 			}
 		}
 		return new LineLayout(boxes, style, revision);

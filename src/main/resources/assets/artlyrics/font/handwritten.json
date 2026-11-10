@@ -1,0 +1,18 @@
+{
+  "providers": [
+    {
+      "type": "ttf",
+      "file": "artlyrics:handwritten.ttf",
+      "size": 11.1,
+      "oversample": 6.0,
+      "shift": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "type": "reference",
+      "id": "minecraft:default"
+    }
+  ]
+}

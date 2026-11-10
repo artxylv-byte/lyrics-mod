@@ -71,5 +71,8 @@ test {
     useJUnitPlatform()
     // Opt-in tests that call the real LRCLIB API: ./gradlew test -Dartlyrics.liveTests=true
     systemProperty 'artlyrics.liveTests', System.getProperty('artlyrics.liveTests', 'false')
+    // Opt-in: render the settings UI to build/ui-preview/*.png: ./gradlew test -Dartlyrics.uiPreview=true
+    systemProperty 'artlyrics.uiPreview', System.getProperty('artlyrics.uiPreview', 'false')
+    systemProperty 'java.awt.headless', 'true'
     testLogging { showStandardStreams = true }
 }

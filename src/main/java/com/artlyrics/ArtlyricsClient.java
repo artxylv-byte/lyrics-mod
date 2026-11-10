@@ -50,7 +50,7 @@ public final class ArtlyricsClient implements ClientModInitializer {
 		source.setPreferredPlayer(config.preferredPlayer);
 		PlaybackTracker tracker = new PlaybackTracker(source);
 		LyricsManager lyrics = new LyricsManager(lrclib);
-		Artlyrics mod = new Artlyrics(config, tracker, lyrics);
+		Artlyrics mod = new Artlyrics(config, tracker, lyrics, version);
 
 		if (Boolean.getBoolean("artlyrics.demo")) {
 			tracker.setDemoActive(true); // handy for development and screenshots

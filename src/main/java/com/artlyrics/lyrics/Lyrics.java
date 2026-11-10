@@ -18,6 +18,19 @@ public record Lyrics(List<LyricLine> lines, boolean wordSynced, String source) {
 		return lines.isEmpty();
 	}
 
+	/**
+	 * Song time at which line {@code index} should start leaving: {@code lingerMs} after its last word (but shown
+	 * for at least 1.5 seconds), and never later than the next line's start.
+	 */
+	public long visibleEnd(int index, long lingerMs) {
+		LyricLine line = lines.get(index);
+		long end = Math.max(line.endMs() + lingerMs, line.startMs() + 1500);
+		if (index + 1 < lines.size()) {
+			end = Math.min(end, Math.max(line.startMs(), lines.get(index + 1).startMs()));
+		}
+		return end;
+	}
+
 	/** Index of the last line that has started at {@code timeMs}, or -1 if the first line hasn't started yet. */
 	public int lineIndexAt(long timeMs) {
 		int lo = 0;
