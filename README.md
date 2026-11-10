@@ -3,7 +3,11 @@
 A client-side Fabric mod for **Minecraft 1.21.11** that turns the song you're listening to into live, synced
 lyrics drawn in the world around you.
 
-![Artlyrics settings: the Look page](docs/settings-look.png)
+![Skywriting with the Starlight look](docs/ingame-starlight.png)
+
+| Settings (Look page) | Hover mode with the Campfire look |
+| --- | --- |
+| ![Settings screen](docs/ingame-settings.png) | ![Hover mode](docs/ingame-hover.png) |
 
 - **Skywriting**: each line is written across the sky where you were looking when it started, then slowly
   drifts upward. It's part of the world, so hills and trees can get in the way.
@@ -98,8 +102,9 @@ Requires JDK 21.
 The UI preview doesn't start Minecraft: the settings screen and song card draw through a small `Canvas` interface,
 which the test implements with Java2D using Minecraft's own glyph sheets and the bundled fonts.
 
-The game-test screenshots end up in `build/run/clientGameTest/screenshots/`. The game test needs a machine with a
-real GPU; on headless software rendering (Mesa llvmpipe) Minecraft 1.21.11 only produces black frames.
+The game-test screenshots end up in `build/run/clientGameTest/screenshots/` (the images above come from it). It also
+checks that every bundled font loads. It needs Minecraft's game assets, which `./gradlew downloadAssets` fetches; without
+them the resource reload fails and the screenshots come out black.
 
 ## Project layout
 

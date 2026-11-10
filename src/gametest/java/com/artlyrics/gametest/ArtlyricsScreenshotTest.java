@@ -4,10 +4,13 @@ import com.artlyrics.Artlyrics;
 import com.artlyrics.config.ArtlyricsConfig;
 import com.artlyrics.config.Look;
 import com.artlyrics.config.LyricStyle;
+import com.artlyrics.render.Fonts;
 import com.artlyrics.screen.ArtlyricsScreen;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.Style;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,6 +25,10 @@ public class ArtlyricsScreenshotTest implements FabricClientGameTest {
 
 	@Override
 	public void runTest(ClientGameTestContext context) {
+		checkFontsLoaded(context);
+		if (System.getenv("ARTLYRICS_GAMETEST_QUICK") != null) {
+			return; // fonts only, skip the slow world part
+		}
 		context.runOnClient(client -> client.options.renderDistance().set(5));
 
 		try (TestSingleplayerContext world = context.worldBuilder().create()) {
@@ -72,6 +79,27 @@ public class ArtlyricsScreenshotTest implements FabricClientGameTest {
 			}
 			context.setScreen(() -> null);
 		}
+	}
+
+	/** Every bundled font must have loaded: text in it measures differently from Minecraft's default font. */
+	private static void checkFontsLoaded(ClientGameTestContext context) {
+		// Wait for resources to finish loading: until then every glyph is the 6px "missing" box ("iiii" = 24).
+		context.waitFor(client -> client.getOverlay() == null && client.font.width("iiii") < 24, 20 * 120);
+		context.runOnClient(client -> {
+			String sample = "The quick brown fox jumps over the lazy dog";
+			int vanilla = client.font.width(sample);
+			for (ArtlyricsConfig.TextFont font : ArtlyricsConfig.TextFont.values()) {
+				if (font.bundled == null) {
+					continue;
+				}
+				int world = client.font.width(Component.literal(sample).withStyle(Style.EMPTY.withFont(Fonts.world(font))));
+				int ui = client.font.width(Component.literal(sample).withStyle(Fonts.uiStyle(font)));
+				LOGGER.info("Font {}: world width {}, menu width {}, Minecraft font {}", font, world, ui, vanilla);
+				if (world == vanilla || ui == vanilla) {
+					throw new AssertionError("Bundled font " + font + " didn't load (same width as the default font)");
+				}
+			}
+		});
 	}
 
 	private static void shot(ClientGameTestContext context, String name, long songMs, float pitch, Consumer<ArtlyricsConfig> setup) {

@@ -142,7 +142,7 @@ public final class SongCardView {
 			drawProgress(c, track, host.positionMs(), x + PAD, cy, width - PAD * 2, accent, palette);
 			cy += ROW;
 		}
-		drawLyrics(c, x + PAD, cy, width - PAD * 2, config.font, now);
+		drawLyrics(c, x + PAD, cy, width - PAD * 2, cardFont(config.font), now);
 	}
 
 	private void drawProgress(Canvas c, NowPlaying track, long positionMs, int x, int y, int width, int accent, Palette palette) {
@@ -223,7 +223,7 @@ public final class SongCardView {
 			rows = List.of();
 			status = status(host);
 		} else {
-			rows = wrap(c, line, config, timeMs, width, live, config.font, now);
+			rows = wrap(c, line, config, timeMs, width, live, cardFont(config.font), now);
 			status = null;
 		}
 	}
@@ -279,6 +279,11 @@ public final class SongCardView {
 			}
 		}
 		return List.of();
+	}
+
+	/** The lyric font on the card: very thin or flowing fonts are hard to read that small, so those use Soft. */
+	static TextFont cardFont(TextFont font) {
+		return font == TextFont.FANCY || font == TextFont.DECO ? TextFont.SOFT : font;
 	}
 
 	static @Nullable String status(UiHost host) {

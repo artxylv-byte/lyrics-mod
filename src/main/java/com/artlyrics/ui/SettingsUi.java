@@ -217,7 +217,9 @@ public final class SettingsUi {
 		}
 
 		if (!compact) {
-			c.text("v" + host.version(), null, px + 12, py + ph - 14, Theme.FAINT, false);
+			String version = host.version();
+			int plus = version.indexOf('+');
+			c.text("v" + (plus > 0 ? version.substring(0, plus) : version), null, px + 12, py + ph - 14, Theme.FAINT, false);
 		}
 	}
 

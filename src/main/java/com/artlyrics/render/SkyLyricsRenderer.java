@@ -39,8 +39,8 @@ public final class SkyLyricsRenderer {
 	private static final int MAX_SHOWN = 4;
 
 	/** Angular size of one font pixel, in radians, at size 1.0. */
-	private static final float SKY_RADIANS_PER_PX = 0.0042f;
-	private static final float HOVER_RADIANS_PER_PX = 0.005f;
+	private static final float SKY_RADIANS_PER_PX = 0.006f;
+	private static final float HOVER_RADIANS_PER_PX = 0.0068f;
 
 	private static final int[][] RING_1 = {{-1, -1}, {0, -1}, {1, -1}, {-1, 0}, {1, 0}, {-1, 1}, {0, 1}, {1, 1}};
 	private static final float[][] RING_2 = {{-2, 0}, {2, 0}, {0, -2}, {0, 2}, {-1.4f, -1.4f}, {1.4f, -1.4f}, {-1.4f, 1.4f}, {1.4f, 1.4f}};
@@ -356,16 +356,18 @@ public final class SkyLyricsRenderer {
 		if (alpha <= 0.01f) {
 			return;
 		}
-		// Arc: words in the middle of a row sit a little higher than the ends.
+		// The whole line lies on one flat plane facing the camera at the line's anchor, like a banner, so rows read
+		// straight. Arc: words in the middle of a row sit a little higher than the ends and tilt with the curve.
 		float u = Mth.clamp(xCenterPx / rowHalfWidth, -1f, 1f);
 		float arcPx = f.bendPx * (1f - u * u);
 		float slope = rowHalfWidth > 1f ? -2f * u * f.bendPx / rowHalfWidth : 0f;
-
-		float yawDeg = f.yaw + (float) Math.toDegrees(xCenterPx * f.radPerPx);
-		float elevDeg = f.elev + (float) Math.toDegrees((arcPx - yPx) * f.radPerPx);
-		float roll = slope != 0f ? (float) Math.atan(slope) * 0.6f : 0f;
-		Matrix4f matrix = SkyGeometry.wordMatrix(f.poseStack.last().pose(), yawDeg, elevDeg, f.distance, roll,
-				f.distance * f.radPerPx * scale);
+		Matrix4f matrix = SkyGeometry.wordMatrix(f.poseStack.last().pose(), f.yaw, f.elev, f.distance, 0f, f.distance * f.radPerPx)
+				.translate(xCenterPx, yPx - arcPx, 0f);
+		if (slope != 0f) {
+			// Font Y points down, so a counter-clockwise tilt on screen is a negative rotation here.
+			matrix.rotateZ(-(float) Math.atan(slope) * 0.8f);
+		}
+		matrix.scale(scale, scale, 1f);
 
 		float x = -box.width() / 2f + dx;
 		float y = -4.5f + risePx / scale;
@@ -373,19 +375,22 @@ public final class SkyLyricsRenderer {
 		int light = LightTexture.FULL_BRIGHT;
 		Font.DisplayMode mode = f.sky ? Font.DisplayMode.POLYGON_OFFSET : Font.DisplayMode.SEE_THROUGH;
 		Font font = f.font;
+		// Glow, shadow and outline copies sit a hair behind the letters, so however Minecraft sorts translucent
+		// text, the letters always end up on top.
+		Matrix4f behind = new Matrix4f(matrix).translate(0f, 0f, -0.6f);
 
 		switch (f.effect) {
 			case GLOW -> {
-				// A soft halo: faint copies in a lighter tint around the letters, under the text.
-				int halo = Palette.lerpRgb(rgb, 0xFFFFFF, 0.3f);
-				int inner = ARGB.color(alpha * f.glow * 0.16f, halo);
-				int outer = ARGB.color(alpha * f.glow * 0.09f, halo);
+				// A soft halo: faint copies in a lighter tint around the letters.
 				if (f.glow > 0.01f) {
+					int halo = Palette.lerpRgb(rgb, 0xFFFFFF, 0.3f);
+					int inner = ARGB.color(alpha * f.glow * 0.16f, halo);
+					int outer = ARGB.color(alpha * f.glow * 0.09f, halo);
 					for (float[] o : RING_2) {
-						font.drawInBatch(text, x + o[0], y + o[1], outer, false, matrix, f.buffers, mode, 0, light);
+						font.drawInBatch(text, x + o[0], y + o[1], outer, false, behind, f.buffers, mode, 0, light);
 					}
 					for (int[] o : RING_1) {
-						font.drawInBatch(text, x + o[0], y + o[1], inner, false, matrix, f.buffers, mode, 0, light);
+						font.drawInBatch(text, x + o[0], y + o[1], inner, false, behind, f.buffers, mode, 0, light);
 					}
 				}
 				font.drawInBatch(text, x, y, argb, false, matrix, f.buffers, mode, 0, light);
@@ -396,7 +401,7 @@ public final class SkyLyricsRenderer {
 					font.drawInBatch8xOutline(text.getVisualOrderText(), x, y, argb, outline, matrix, f.buffers, light);
 				} else {
 					for (int[] o : RING_1) {
-						font.drawInBatch(text, x + o[0], y + o[1], outline, false, matrix, f.buffers, mode, 0, light);
+						font.drawInBatch(text, x + o[0] * 0.75f, y + o[1] * 0.75f, outline, false, behind, f.buffers, mode, 0, light);
 					}
 					font.drawInBatch(text, x, y, argb, false, matrix, f.buffers, mode, 0, light);
 				}
@@ -405,8 +410,7 @@ public final class SkyLyricsRenderer {
 				if (f.sky) {
 					font.drawInBatch(text, x, y, argb, true, matrix, f.buffers, mode, 0, light);
 				} else {
-					// Drawn on top of the world: draw the shadow by hand first so it stays underneath.
-					font.drawInBatch(text, x + 1f, y + 1f, ARGB.color(alpha, ARGB.scaleRGB(argb, 0.25f) & 0xFFFFFF), false, matrix, f.buffers, mode, 0, light);
+					font.drawInBatch(text, x + 1f, y + 1f, ARGB.color(alpha * 0.8f, ARGB.scaleRGB(argb, 0.25f) & 0xFFFFFF), false, behind, f.buffers, mode, 0, light);
 					font.drawInBatch(text, x, y, argb, false, matrix, f.buffers, mode, 0, light);
 				}
 			}
