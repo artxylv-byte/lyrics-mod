@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "artlyrics-gametest",
+  "version": "1.0.0",
+  "name": "Artlyrics Game Tests",
+  "environment": "client",
+  "entrypoints": {
+    "fabric-client-gametest": [
+      "com.artlyrics.gametest.ArtlyricsScreenshotTest"
+    ]
+  },
+  "depends": {
+    "artlyrics": "*"
+  }
+}
