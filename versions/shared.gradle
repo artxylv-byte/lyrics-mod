@@ -1,0 +1,45 @@
+// Shared setup for the per-Minecraft-version builds in versions/<mc>/.
+// They compile the same code as the main build (src/main) plus a small version-specific layer
+// (src/compat/<compat>), and read the mod version from the root gradle.properties.
+def rootDir = file("${projectDir}/../..")
+def rootProps = new Properties()
+file("${rootDir}/gradle.properties").withInputStream { rootProps.load(it) }
+
+version = "${rootProps.mod_version}+mc${project.minecraft_version}"
+group = rootProps.maven_group
+base {
+    archivesName = rootProps.archives_base_name
+}
+
+sourceSets {
+    main {
+        java.srcDirs = ["${rootDir}/src/main/java", "${rootDir}/src/compat/${project.compat}/java"]
+        resources.srcDirs = ["${rootDir}/src/main/resources"]
+    }
+}
+
+repositories {
+    maven {
+        name = 'Terraformers'
+        url = 'https://maven.terraformersmc.com/releases/'
+        content { includeGroup 'com.terraformersmc' }
+    }
+}
+
+processResources {
+    def props = [
+        version             : project.version,
+        minecraft_dependency: project.minecraft_dependency,
+        java_version        : project.java_version,
+        loader_version      : project.loader_version,
+    ]
+    inputs.properties props
+    filesMatching('fabric.mod.json') {
+        expand props
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.release = project.java_version as int
+    it.options.encoding = 'UTF-8'
+}
