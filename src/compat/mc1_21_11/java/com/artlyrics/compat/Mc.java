@@ -62,4 +62,9 @@ public final class Mc {
 	public static float cameraPitch(Camera camera) {
 		return camera.xRot();
 	}
+
+	/** Opens a folder in the computer's file manager. */
+	public static void openFolder(java.nio.file.Path folder) {
+		net.minecraft.util.Util.getPlatform().openPath(folder);
+	}
 }

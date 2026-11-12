@@ -23,7 +23,7 @@ import java.util.concurrent.Future;
  */
 public final class LyricsManager {
 	private static final Logger LOGGER = LoggerFactory.getLogger("Artlyrics");
-	/** Wait this long after a track change before searching, so skipping through songs doesn't spam LRCLIB. */
+	/** Wait this long after a track change before searching, so skipping through songs doesn't spam the sites. */
 	private static final long SETTLE_NANOS = 700_000_000L;
 	private static final long RETRY_AFTER_ERROR_NANOS = 30_000_000_000L;
 	private static final int CACHE_SIZE = 64;
@@ -32,7 +32,7 @@ public final class LyricsManager {
 		IDLE, WAITING, SEARCHING, FOUND, INSTRUMENTAL, UNSYNCED_ONLY, NOT_FOUND, ERROR
 	}
 
-	private final LrclibClient client;
+	private final LyricsFinder finder;
 	private final ExecutorService executor = Executors.newSingleThreadExecutor(r -> {
 		Thread t = new Thread(r, "Artlyrics-Lyrics");
 		t.setDaemon(true);
@@ -55,8 +55,17 @@ public final class LyricsManager {
 	private volatile String detail = "";
 	private @Nullable Lyrics demoLyrics;
 
-	public LyricsManager(LrclibClient client) {
-		this.client = client;
+	public LyricsManager(LyricsFinder finder) {
+		this.finder = finder;
+	}
+
+	public LyricsFinder finder() {
+		return finder;
+	}
+
+	/** Identifies the current song (artist and title), e.g. for remembering its timing; null when nothing plays. */
+	public synchronized @Nullable String trackKey() {
+		return trackId;
 	}
 
 	/** Call regularly (every client tick is fine) with what's playing. */
@@ -107,7 +116,7 @@ public final class LyricsManager {
 		state = State.SEARCHING;
 		pending = executor.submit(() -> {
 			try {
-				LyricsResult result = client.lookup(query);
+				LyricsResult result = finder.find(query);
 				if (result.status() != LyricsResult.Status.ERROR) {
 					cache.put(query.cacheKey(), result);
 				} else {

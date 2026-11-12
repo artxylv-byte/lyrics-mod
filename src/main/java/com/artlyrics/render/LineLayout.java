@@ -29,11 +29,19 @@ final class LineLayout {
 	final List<WordBox> words;
 	final Style style;
 	final int revision;
+	/** Number of rows after wrapping. */
+	final int rows;
 
-	private LineLayout(List<WordBox> words, Style style, int revision) {
+	private LineLayout(List<WordBox> words, Style style, int revision, int rows) {
 		this.words = words;
 		this.style = style;
 		this.revision = revision;
+		this.rows = rows;
+	}
+
+	/** Height of the text block in font pixels. */
+	float height() {
+		return Math.max(1, rows) * ROW_HEIGHT;
 	}
 
 	static String display(String word, ArtlyricsConfig config) {
@@ -53,8 +61,8 @@ final class LineLayout {
 			LyricWord w = lineWords.get(i);
 			raws[i] = display(w.trimmed(), config);
 			texts[i] = Component.literal(raws[i]).withStyle(style);
-			trimWidths[i] = font.width(texts[i]);
-			fullWidths[i] = font.width(Component.literal(display(w.text(), config)).withStyle(style));
+			trimWidths[i] = width(font, texts[i]);
+			fullWidths[i] = width(font, Component.literal(display(w.text(), config)).withStyle(style));
 		}
 
 		// Wrap greedily into rows.
@@ -94,7 +102,7 @@ final class LineLayout {
 				float[] letterX = new float[cps.length];
 				StringBuilder prefix = new StringBuilder();
 				for (int c = 0; c < cps.length; c++) {
-					letterX[c] = font.width(Component.literal(prefix.toString()).withStyle(style));
+					letterX[c] = width(font, Component.literal(prefix.toString()).withStyle(style));
 					String letter = new String(cps, c, 1);
 					letters[c] = Component.literal(letter).withStyle(style);
 					prefix.append(letter);
@@ -102,7 +110,12 @@ final class LineLayout {
 				boxes.add(new WordBox(i, raws[i], texts[i], trimWidths[i], xCenter, y, Math.max(1f, rowWidth / 2f), letters, letterX));
 			}
 		}
-		return new LineLayout(boxes, style, revision);
+		return new LineLayout(boxes, style, revision, rows.size());
+	}
+
+	/** Exact width in font pixels (not rounded up), so letters drawn one by one land where the whole word would. */
+	static float width(Font font, Component text) {
+		return font.getSplitter().stringWidth(text);
 	}
 
 	private static float[] toArray(List<Float> list) {

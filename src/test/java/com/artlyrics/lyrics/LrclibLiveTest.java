@@ -30,4 +30,24 @@ class LrclibLiveTest {
 		assertFalse(r.lyrics().isEmpty());
 		System.out.println("messy: " + r.lyrics().lines().size() + " lines, wordSynced=" + r.lyrics().wordSynced());
 	}
+
+	@Test
+	void matchesAccentsAndArtistPrefixedTitles() throws Exception {
+		// LRCLIB stores this one as "Carnival Youth - Basās Kājas (Official Audio)".
+		LyricsResult r = client.lookup(new TrackQuery("Basās Kājas", "Carnival Youth", "", 275_000));
+		assertEquals(LyricsResult.Status.FOUND, r.status(), r.detail());
+		// Typed without Latvian letters.
+		LyricsResult plainName = client.lookup(new TrackQuery("Laikam", "Prata Vetra", "", 258_000));
+		assertEquals(LyricsResult.Status.FOUND, plainName.status(), plainName.detail());
+		System.out.println("latvian: " + r.detail() + " / " + plainName.detail());
+	}
+
+	@Test
+	void lyricsWithoutTimestampsGetEstimatedTiming() throws Exception {
+		LyricsFinder finder = new LyricsFinder(null, client, null, () -> LyricsFinder.Settings.ALL);
+		LyricsResult r = finder.find(new TrackQuery("Deģenerāts", "Prāta Vētra", "", 203_000));
+		assertEquals(LyricsResult.Status.FOUND, r.status(), r.detail());
+		assertTrue(r.lyrics().estimated());
+		System.out.println("estimated: " + r.lyrics().lines().size() + " lines, " + r.detail());
+	}
 }

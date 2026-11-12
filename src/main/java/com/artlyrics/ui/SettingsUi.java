@@ -364,7 +364,7 @@ public final class SettingsUi {
 			return null;
 		}
 		ArtlyricsConfig config = host.config();
-		long t = host.positionMs() + config.offsetMs;
+		long t = host.lyricsTimeMs();
 		int index = lyrics.lineIndexAt(t);
 		if (index < 0 || lyrics.lines().get(index).isBlank()) {
 			return null;
@@ -387,6 +387,16 @@ public final class SettingsUi {
 				String.format(Locale.ROOT, "%.1f s", config.lingerSeconds), v -> config.lingerSeconds = round(v, 0.5f));
 		y = rowSlider(c, "offset", "artlyrics.option.offset", y, config.offsetMs, -3000, 3000,
 				(config.offsetMs > 0 ? "+" : "") + config.offsetMs + " ms", v -> config.offsetMs = Math.round(v / 50f) * 50);
+		int song = host.songOffsetMs();
+		String songText = song == 0 ? host.tr("artlyrics.ui.song_timing_none")
+				: (song > 0 ? "+" : "") + String.format(Locale.ROOT, "%.2f s", song / 1000f);
+		y = rowValueButton(c, "songTiming", "artlyrics.option.song_timing", y, songText, "artlyrics.ui.reset", host::resetSongOffset);
+		y = rowToggle(c, "wholeLine", "artlyrics.option.whole_line", y, config.wholeLine, v -> config.wholeLine = v);
+		y = rowToggle(c, "preview", "artlyrics.option.preview", y, config.nextLinePreview, v -> config.nextLinePreview = v);
+		if (config.nextLinePreview) {
+			y = rowSlider(c, "previewOpacity", "artlyrics.option.preview_opacity", y, config.previewOpacity, 0.15f, 0.8f,
+					Math.round(config.previewOpacity * 100) + "%", v -> config.previewOpacity = round(v, 0.05f));
+		}
 		return y;
 	}
 
@@ -683,6 +693,26 @@ public final class SettingsUi {
 		y = rowToggle(c, "demo", "artlyrics.option.demo", y, host.demoActive(), host::setDemoActive);
 		y = rowButton(c, "refresh", "artlyrics.option.refresh", "artlyrics.ui.search", y, host::refreshLyrics);
 
+		// Where lyrics come from. Changing a source searches again right away.
+		y = section(c, "artlyrics.ui.section.sources", y + 2);
+		y = rowToggle(c, "srcFolder", "artlyrics.option.source_folder", y, config.sourceFolder, v -> {
+			config.sourceFolder = v;
+			host.refreshLyrics();
+		});
+		y = rowButton(c, "openFolder", "artlyrics.option.open_folder", "artlyrics.ui.open", y, host::openLyricsFolder);
+		y = rowToggle(c, "srcLrclib", "artlyrics.option.source_lrclib", y, config.sourceLrclib, v -> {
+			config.sourceLrclib = v;
+			host.refreshLyrics();
+		});
+		y = rowToggle(c, "srcNetease", "artlyrics.option.source_netease", y, config.sourceNetease, v -> {
+			config.sourceNetease = v;
+			host.refreshLyrics();
+		});
+		y = rowToggle(c, "estimate", "artlyrics.option.estimate", y, config.estimateUnsynced, v -> {
+			config.estimateUnsynced = v;
+			host.refreshLyrics();
+		});
+
 		y = section(c, "artlyrics.ui.section.status", y + 2);
 		NowPlaying track = host.track();
 		String problem = host.problem();
@@ -695,7 +725,10 @@ public final class SettingsUi {
 			c.text(Draw.ellipsize(c, problem, UI, cw - 16), UI, cx + 8, y + 2, Theme.BAD, false);
 			y += 13;
 		}
-		c.text(Draw.ellipsize(c, host.tr("artlyrics.ui.lyrics_source"), UI, cw - 16), UI, cx + 8, y + 2, Theme.FAINT, false);
+		String detail = host.lyricsDetail();
+		String sourceLine = detail == null || detail.isBlank() ? host.tr("artlyrics.ui.lyrics_source")
+				: host.tr("artlyrics.ui.lyrics_from") + " " + detail;
+		c.text(Draw.ellipsize(c, sourceLine, UI, cw - 16), UI, cx + 8, y + 2, Theme.FAINT, false);
 		y += 13;
 		c.text(Draw.ellipsize(c, host.tr("artlyrics.ui.keybind_hint"), UI, cw - 16), UI, cx + 8, y + 2, Theme.FAINT, false);
 		return y + 14;
@@ -816,6 +849,23 @@ public final class SettingsUi {
 		Draw.roundRect(c, x0, by, x1, by + 14, 4, Draw.lerpArgb(Draw.withAlpha(accent, 0.25f), Draw.withAlpha(accent, 0.45f), h));
 		String label = host.tr(buttonKey);
 		c.text(label, UI, x0 + (CONTROL_W - c.textWidth(label, UI)) / 2, by + 3, Theme.TEXT, false);
+		contentHit(x0, by, x1, by + 14, action);
+		return y;
+	}
+
+	/** A row with a value on the right and a small button next to it. */
+	private int rowValueButton(Canvas c, String id, String labelKey, int y, String value, String buttonKey, Runnable action) {
+		int top = y;
+		int bw = 48;
+		y = rowFrame(c, id, labelKey, y, bw + 12 + c.textWidth(value, UI));
+		int x1 = cx + cw - 8;
+		int x0 = x1 - bw;
+		int by = rowMid(top) - 7;
+		float h = hover("btn:" + id, insideContent(x0, by, x1, by + 14));
+		Draw.roundRect(c, x0, by, x1, by + 14, 4, Draw.lerpArgb(Draw.withAlpha(accent, 0.25f), Draw.withAlpha(accent, 0.45f), h));
+		String label = host.tr(buttonKey);
+		c.text(label, UI, x0 + (bw - c.textWidth(label, UI)) / 2, by + 3, Theme.TEXT, false);
+		c.text(value, UI, x0 - 8 - c.textWidth(value, UI), rowMid(top) - 4, Theme.MUTED, false);
 		contentHit(x0, by, x1, by + 14, action);
 		return y;
 	}
@@ -951,6 +1001,29 @@ public final class SettingsUi {
 			@Override
 			public long positionMs() {
 				return 1_400;
+			}
+
+			@Override
+			public long lyricsTimeMs() {
+				return 1_400;
+			}
+
+			@Override
+			public int songOffsetMs() {
+				return 0;
+			}
+
+			@Override
+			public void resetSongOffset() {
+			}
+
+			@Override
+			public void openLyricsFolder() {
+			}
+
+			@Override
+			public String lyricsDetail() {
+				return "";
 			}
 
 			@Override

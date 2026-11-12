@@ -193,7 +193,7 @@ public final class SongCardView {
 	private void computeContent(Canvas c, UiHost host, int width, long now) {
 		ArtlyricsConfig config = host.config();
 		Lyrics lyrics = host.lyrics();
-		long timeMs = host.positionMs() + config.offsetMs;
+		long timeMs = host.lyricsTimeMs();
 		long lingerMs = Math.round(config.lingerSeconds * 1000);
 
 		LyricLine line = null;

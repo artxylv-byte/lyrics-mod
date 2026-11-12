@@ -37,6 +37,14 @@ import java.util.List;
 public final class SkyLyricsRenderer {
 	private static final long EXIT_NANOS = 750_000_000L;
 	private static final int MAX_SHOWN = 4;
+	/**
+	 * Words start appearing this long before they're sung, so the fade-in is already visible on the beat instead of
+	 * trailing behind the voice.
+	 */
+	private static final float LEAD_MS = 120f;
+	/** Skywriting rises at most this many degrees while a line is shown. */
+	private static final float MAX_DRIFT_DEG = 4f;
+	private static final float PREVIEW_SCALE = 0.8f;
 
 	/** Angular size of one font pixel, in radians, at size 1.0. */
 	private static final float SKY_RADIANS_PER_PX = 0.006f;
@@ -61,6 +69,9 @@ public final class SkyLyricsRenderer {
 		long exitStartNanos;
 		LineLayout layout;
 		ArtlyricsConfig.DisplayMode layoutMode;
+		/** The next line, shown small underneath when the preview is on. */
+		LineLayout previewLayout;
+		int previewIndex = -1;
 
 		ShownLine(Lyrics lyrics, int index, LyricLine line, float anchorYaw, float anchorElev) {
 			this.lyrics = lyrics;
@@ -113,7 +124,7 @@ public final class SkyLyricsRenderer {
 			return;
 		}
 
-		long timeMs = mod.tracker().positionMs() + config.offsetMs;
+		long timeMs = mod.lyricsTimeMs();
 		updateShownLines(mod, config, camera, timeMs, now);
 		if (shown.isEmpty()) {
 			return;
@@ -124,8 +135,14 @@ public final class SkyLyricsRenderer {
 		f.buffers = buffers;
 		f.font = mc.font;
 		double seconds = now / 1e9;
+		ShownLine newest = null;
 		for (ShownLine line : shown) {
-			drawLine(line, config, mod.settingsRevision(), f, timeMs, now, seconds);
+			if (!line.leaving()) {
+				newest = line;
+			}
+		}
+		for (ShownLine line : shown) {
+			drawLine(line, config, mod.settingsRevision(), f, timeMs, now, seconds, line == newest);
 		}
 	}
 
@@ -197,7 +214,16 @@ public final class SkyLyricsRenderer {
 		}
 	}
 
-	private void drawLine(ShownLine shownLine, ArtlyricsConfig config, int revision, Frame f, long timeMs, long now, double seconds) {
+	/** How far skywriting has risen after {@code ms}: starts at {@code speed} degrees per second and eases to a stop. */
+	static float driftDegrees(long ms, float speed) {
+		if (speed <= 0f || ms <= 0) {
+			return 0f;
+		}
+		return MAX_DRIFT_DEG * (1f - (float) Math.exp(-(ms / 1000f) * speed / MAX_DRIFT_DEG));
+	}
+
+	private void drawLine(ShownLine shownLine, ArtlyricsConfig config, int revision, Frame f, long timeMs, long now, double seconds,
+						  boolean newest) {
 		boolean sky = config.displayMode == ArtlyricsConfig.DisplayMode.SKYWRITING;
 		if (shownLine.layout == null || shownLine.layout.revision != revision || shownLine.layoutMode != config.displayMode) {
 			float maxRow = sky ? config.lineWidth : config.lineWidth * 0.9f;
@@ -215,16 +241,23 @@ public final class SkyLyricsRenderer {
 		}
 		float gone = 1f - exit;
 		float lineScale = config.exitStyle == ArtlyricsConfig.ExitStyle.SHRINK ? 0.6f + 0.4f * exit : 1f;
-		float lift = config.exitStyle == ArtlyricsConfig.ExitStyle.FLOAT ? gone * (sky ? 3.5f : 2f) : 0f;
-		// Skywriting rises slowly while it's up, like a trail drifting off.
-		float drift = sky ? Math.min(4f, Math.max(0f, (timeMs - line.startMs()) / 1000f) * config.driftSpeed) : 0f;
+		// Skywriting rises slowly while it's up, like a trail drifting off, and eases to a stop.
+		float drift = sky ? driftDegrees(timeMs - line.startMs(), config.driftSpeed) : 0f;
+		// Angular size per font pixel: the same however far away the text is placed.
+		f.radPerPx = (sky ? SKY_RADIANS_PER_PX : HOVER_RADIANS_PER_PX) * config.size;
+		// A leaving line glides up by its own height, so it never sits under the line that replaces it.
+		float heightDeg = (shownLine.layout.height() + 4f) * f.radPerPx * Mth.RAD_TO_DEG;
+		float lift;
+		if (config.exitStyle == ArtlyricsConfig.ExitStyle.FLOAT) {
+			lift = gone * Math.max(heightDeg, sky ? 3.5f : 2f);
+		} else {
+			lift = sky ? 0f : gone * heightDeg; // hover lines share one spot, so they always make room
+		}
 
 		f.sky = sky;
 		f.yaw = sky ? shownLine.anchorYaw : hoverYaw;
 		f.elev = (sky ? shownLine.anchorElev : hoverElev) + drift + lift;
 		f.distance = sky ? skyDistance(config) : config.hoverDistance;
-		// Angular size per font pixel: the same however far away the text is placed.
-		f.radPerPx = (sky ? SKY_RADIANS_PER_PX : HOVER_RADIANS_PER_PX) * config.size;
 		f.bendPx = config.arc ? (sky ? 16f : 8f) * config.arcAmount : 0f;
 		f.effect = config.textEffect;
 		f.glow = config.glowStrength;
@@ -234,6 +267,10 @@ public final class SkyLyricsRenderer {
 		Palette palette = config.palette();
 		LineLayout layout = shownLine.layout;
 		float baseAlpha = exit * config.opacity;
+
+		if (newest && config.nextLinePreview) {
+			drawPreview(shownLine, config, revision, f, timeMs, baseAlpha, palette, seconds);
+		}
 
 		if (config.animation == ArtlyricsConfig.Animation.SPOTLIGHT) {
 			int wi = line.wordIndexAt(timeMs);
@@ -248,12 +285,16 @@ public final class SkyLyricsRenderer {
 			return;
 		}
 
+		boolean whole = config.wholeLine;
 		for (LineLayout.WordBox box : layout.words) {
 			LyricWord w = words.get(box.index());
 			int base = palette.colorAt(n > 1 ? box.index() / (float) (n - 1) : 0.5f, seconds);
-			boolean sung = timeMs >= w.startMs();
-			boolean active = w.isActiveAt(timeMs);
-			float since = (timeMs - w.startMs()) * speed;
+			// With "whole line" every word counts as starting with the line.
+			long wordStart = whole ? line.startMs() : w.startMs();
+			long wordEnd = whole ? Math.max(line.startMs() + 1, line.endMs()) : w.endMs();
+			boolean sung = timeMs + LEAD_MS >= wordStart;
+			boolean active = !whole && w.isActiveAt(timeMs);
+			float since = (timeMs + LEAD_MS - wordStart) * speed;
 
 			switch (config.animation) {
 				case FADE -> {
@@ -286,7 +327,7 @@ public final class SkyLyricsRenderer {
 						continue;
 					}
 					int letters = box.letters().length;
-					float perLetter = Math.max(25f, Math.min(90f, (w.endMs() - w.startMs()) / (float) Math.max(1, letters)));
+					float perLetter = Math.max(25f, Math.min(90f, (wordEnd - wordStart) / (float) Math.max(1, letters)));
 					int visible = (int) Math.min(letters, 1 + since / perLetter);
 					Component text = box.text();
 					if (visible < letters) {
@@ -296,18 +337,20 @@ public final class SkyLyricsRenderer {
 					int rgb = active ? Palette.lerpRgb(base, palette.accent(), 0.4f) : base;
 					drawWord(f, box, text, box.xCenter(), box.y(), box.rowHalfWidth(), lineScale, 0f, baseAlpha, rgb);
 				}
-				default -> { // SWEEP
-					float lineIn = Easing.clamp01((timeMs - line.startMs()) * speed / 400f);
-					float alpha = Easing.inOutSine(lineIn) * (sung ? 1f : 0.35f) * baseAlpha;
-					int rgb = base;
-					float rise = 0f;
-					if (!sung) {
-						rgb = Palette.lerpRgb(base, 0x7C7F8C, 0.5f);
-					} else if (active) {
-						rgb = Palette.lerpRgb(base, palette.accent(), 0.5f);
-						rise = -1.5f * (1f - Easing.clamp01(since / 220f));
+				default -> { // SWEEP: a karaoke fill that runs smoothly through each word as it's sung
+					float lineIn = Easing.inOutSine(Easing.clamp01((timeMs + LEAD_MS - line.startMs()) * speed / 400f));
+					float fill = Easing.clamp01((timeMs - wordStart) / (float) Math.max(1, wordEnd - wordStart));
+					int unsungRgb = Palette.lerpRgb(base, 0x7C7F8C, 0.5f);
+					// Just-sung words keep a little of the highlight and let it fade out.
+					float afterglow = 1f - Easing.clamp01((timeMs - wordEnd) / 450f);
+					int sungRgb = Palette.lerpRgb(base, palette.accent(), 0.5f * afterglow);
+					if (fill <= 0f) {
+						drawWord(f, box, box.text(), box.xCenter(), box.y(), box.rowHalfWidth(), lineScale, 0f, lineIn * 0.35f * baseAlpha, unsungRgb);
+					} else if (fill >= 1f) {
+						drawWord(f, box, box.text(), box.xCenter(), box.y(), box.rowHalfWidth(), lineScale, 0f, lineIn * baseAlpha, sungRgb);
+					} else {
+						drawSweepingWord(f, box, fill, lineScale, lineIn * baseAlpha, unsungRgb, sungRgb);
 					}
-					drawWord(f, box, box.text(), box.xCenter(), box.y(), box.rowHalfWidth(), lineScale, rise, alpha, rgb);
 				}
 			}
 		}
@@ -331,6 +374,58 @@ public final class SkyLyricsRenderer {
 			}
 			drawGlyphs(f, box, letters[i], box.letterX()[i], box.xCenter(), box.y(), box.rowHalfWidth(), lineScale,
 					(1f - Easing.outCubic(in)) * 6f, Easing.inOutSine(in) * baseAlpha, rgb);
+		}
+	}
+
+	/**
+	 * A word partway through being sung: letters behind the fill point are lit, the one under it is part lit, and
+	 * the rest wait in the dim color, so the highlight glides instead of jumping from word to word.
+	 */
+	private void drawSweepingWord(Frame f, LineLayout.WordBox box, float fill, float lineScale, float alpha, int unsungRgb, int sungRgb) {
+		Component[] letters = box.letters();
+		float[] xs = box.letterX();
+		float edge = fill * box.width();
+		for (int i = 0; i < letters.length; i++) {
+			float x0 = xs[i];
+			float x1 = i + 1 < xs.length ? xs[i + 1] : box.width();
+			float lit = Easing.clamp01((edge - x0) / Math.max(1f, x1 - x0));
+			float a = alpha * (0.35f + 0.65f * lit);
+			int rgb = Palette.lerpRgb(unsungRgb, sungRgb, lit);
+			float rise = -1.2f * lit * (1f - Easing.clamp01((edge - x1) / 24f));
+			drawGlyphs(f, box, letters[i], x0, box.xCenter(), box.y(), box.rowHalfWidth(), lineScale, rise, a, rgb);
+		}
+	}
+
+	/** The next line, small and faint under the current one. */
+	private void drawPreview(ShownLine current, ArtlyricsConfig config, int revision, Frame f, long timeMs, float baseAlpha,
+							 Palette palette, double seconds) {
+		Lyrics lyrics = current.lyrics;
+		int next = -1;
+		for (int i = current.index + 1; i < lyrics.lines().size(); i++) {
+			if (!lyrics.lines().get(i).isBlank()) {
+				next = i;
+				break;
+			}
+		}
+		if (next < 0) {
+			return;
+		}
+		if (current.previewLayout == null || current.previewIndex != next || current.previewLayout.revision != revision) {
+			float maxRow = (f.sky ? config.lineWidth : config.lineWidth * 0.9f) / PREVIEW_SCALE;
+			current.previewLayout = LineLayout.build(lyrics.lines().get(next), f.font, config, maxRow, revision);
+			current.previewIndex = next;
+		}
+		LineLayout preview = current.previewLayout;
+		float fadeIn = Easing.inOutSine(Easing.clamp01((timeMs + LEAD_MS - current.line.startMs()) / 500f));
+		float alpha = baseAlpha * config.previewOpacity * fadeIn;
+		if (alpha <= 0.01f) {
+			return;
+		}
+		float offset = current.layout.height() / 2f + 5f + preview.height() * PREVIEW_SCALE / 2f;
+		int rgb = Palette.lerpRgb(palette.colorAt(0.5f, seconds), 0xB8BCC8, 0.45f);
+		for (LineLayout.WordBox box : preview.words) {
+			drawWord(f, box, box.text(), box.xCenter() * PREVIEW_SCALE, offset + box.y() * PREVIEW_SCALE,
+					box.rowHalfWidth() * PREVIEW_SCALE, PREVIEW_SCALE, 0f, alpha, rgb);
 		}
 	}
 

@@ -17,6 +17,20 @@ public interface UiHost {
 
 	long positionMs();
 
+	/** Song time the lyrics are shown for: position plus the general and per-song timing corrections. */
+	long lyricsTimeMs();
+
+	/** The current song's own timing correction in milliseconds. */
+	int songOffsetMs();
+
+	void resetSongOffset();
+
+	/** Opens the folder where players can put their own lyrics files. */
+	void openLyricsFolder();
+
+	/** Where the current lyrics came from, or why there are none. */
+	String lyricsDetail();
+
 	@Nullable Lyrics lyrics();
 
 	LyricsManager.State lyricsState();

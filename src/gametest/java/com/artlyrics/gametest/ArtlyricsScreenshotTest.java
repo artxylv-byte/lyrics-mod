@@ -66,6 +66,14 @@ public class ArtlyricsScreenshotTest implements FabricClientGameTest {
 				c.cardCorner = ArtlyricsConfig.CardCorner.TOP_RIGHT;
 			});
 
+			shot(context, "08b-hover-sweep-next-line-preview", 9_800, 4f, c -> {
+				c.apply(Look.STARLIGHT);
+				c.displayMode = ArtlyricsConfig.DisplayMode.HOVER;
+				c.animation = ArtlyricsConfig.Animation.SWEEP;
+				c.nextLinePreview = true;
+			});
+			context.runOnClient(client -> Artlyrics.get().config().nextLinePreview = false);
+
 			context.setScreen(() -> new ArtlyricsScreen(null));
 			for (int i = 0; i < 6; i++) {
 				int page = i;

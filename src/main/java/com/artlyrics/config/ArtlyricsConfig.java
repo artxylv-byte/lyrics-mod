@@ -119,6 +119,12 @@ public final class ArtlyricsConfig {
 	public float lingerSeconds = 2.5f;
 	/** Shifts lyrics in time; positive shows them earlier. */
 	public int offsetMs = 0;
+	/** Show each line complete as soon as it starts, instead of word by word. */
+	public boolean wholeLine = false;
+	/** Show the next line faintly under the current one. */
+	public boolean nextLinePreview = false;
+	/** How visible the next-line preview is. */
+	public float previewOpacity = 0.4f;
 
 	// --- Look -----------------------------------------------------------------------------------------------
 	public TextFont font = TextFont.SOFT;
@@ -166,6 +172,14 @@ public final class ArtlyricsConfig {
 	// --- Music ----------------------------------------------------------------------------------------------
 	/** When several players are active, prefer the one whose name contains this ("" = any). */
 	public String preferredPlayer = "spotify";
+
+	// --- Lyrics sources -------------------------------------------------------------------------------------
+	/** Lyrics files in config/artlyrics/lyrics. */
+	public boolean sourceFolder = true;
+	public boolean sourceLrclib = true;
+	public boolean sourceNetease = true;
+	/** When a song only has lyrics without timestamps, spread them over the song instead of showing nothing. */
+	public boolean estimateUnsynced = true;
 
 	private transient Path path;
 
@@ -231,6 +245,7 @@ public final class ArtlyricsConfig {
 		followSpeed = clamp(followSpeed, 1f, 20f, d.followSpeed);
 		cardScale = clamp(cardScale, 0.6f, 1.6f, d.cardScale);
 		cardOpacity = clamp(cardOpacity, 0.2f, 1f, d.cardOpacity);
+		previewOpacity = clamp(previewOpacity, 0.15f, 0.8f, d.previewOpacity);
 	}
 
 	public void save() {

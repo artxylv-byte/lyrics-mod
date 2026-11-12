@@ -8,9 +8,13 @@ import org.jetbrains.annotations.Nullable;
  */
 public final class PlaybackTracker {
 	/** Differences larger than this are treated as a seek and applied instantly. */
-	private static final double SNAP_MS = 750;
-	/** How quickly small differences are smoothed away. */
-	private static final double CONVERGE_MS = 300;
+	private static final double SNAP_MS = 450;
+	/** Differences smaller than this are just sampling noise and are left alone. */
+	private static final double DEADBAND_MS = 25;
+	/** A difference of this many milliseconds speeds the clock up (or slows it down) by 100 %... */
+	private static final double CORRECT_MS = 500;
+	/** ...but never by more than this, so words never visibly rush or stall while it catches up. */
+	private static final double MAX_RATE_CHANGE = 0.08;
 
 	private final MediaSource system;
 	private final DemoMediaSource demo = new DemoMediaSource();
@@ -80,11 +84,17 @@ public final class PlaybackTracker {
 		lastFrameNanos = nowNanos;
 		hasFrame = true;
 
-		if (newTrack || !sample.playing() || Math.abs(target - clockMs) > SNAP_MS) {
+		double error = target - clockMs;
+		if (newTrack || !sample.playing() || Math.abs(error) > SNAP_MS) {
 			clockMs = target;
 		} else {
-			clockMs += dt;
-			clockMs += (target - clockMs) * Math.min(1.0, dt / CONVERGE_MS);
+			// Run at real speed and correct small differences by running a little faster or slower for a while,
+			// instead of jumping, so the music and the words stay in step without the words wobbling.
+			double rate = 1.0;
+			if (Math.abs(error) > DEADBAND_MS) {
+				rate += Math.max(-MAX_RATE_CHANGE, Math.min(MAX_RATE_CHANGE, error / CORRECT_MS));
+			}
+			clockMs += dt * rate;
 		}
 		track = sample;
 	}

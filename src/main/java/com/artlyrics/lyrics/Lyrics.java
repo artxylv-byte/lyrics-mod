@@ -8,10 +8,15 @@ import java.util.List;
  * @param lines      lines sorted by start time
  * @param wordSynced true when word timings come from the source; false when they were estimated from line timings
  * @param source     a short human readable description of where the lyrics came from
+ * @param estimated  true when the source had no timestamps at all and line timings were guessed from the song length
  */
-public record Lyrics(List<LyricLine> lines, boolean wordSynced, String source) {
+public record Lyrics(List<LyricLine> lines, boolean wordSynced, String source, boolean estimated) {
 	public Lyrics {
 		lines = List.copyOf(lines);
+	}
+
+	public Lyrics(List<LyricLine> lines, boolean wordSynced, String source) {
+		this(lines, wordSynced, source, false);
 	}
 
 	public boolean isEmpty() {

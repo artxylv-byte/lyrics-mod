@@ -155,6 +155,29 @@ class SettingsUiPreviewTest {
 		}
 
 		@Override
+		public long lyricsTimeMs() {
+			return 2_600 + config().offsetMs;
+		}
+
+		@Override
+		public int songOffsetMs() {
+			return 0;
+		}
+
+		@Override
+		public void resetSongOffset() {
+		}
+
+		@Override
+		public void openLyricsFolder() {
+		}
+
+		@Override
+		public String lyricsDetail() {
+			return "LRCLIB";
+		}
+
+		@Override
 		public @Nullable Lyrics lyrics() {
 			return track == null ? null : lyrics;
 		}

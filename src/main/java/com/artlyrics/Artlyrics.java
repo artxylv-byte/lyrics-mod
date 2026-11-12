@@ -1,6 +1,9 @@
 package com.artlyrics;
 
+import com.artlyrics.compat.Mc;
 import com.artlyrics.config.ArtlyricsConfig;
+import com.artlyrics.config.TimingOffsets;
+import com.artlyrics.lyrics.LocalLyrics;
 import com.artlyrics.lyrics.Lyrics;
 import com.artlyrics.lyrics.LyricsManager;
 import com.artlyrics.nowplaying.NowPlaying;
@@ -18,14 +21,16 @@ public final class Artlyrics {
 	private final ArtlyricsConfig config;
 	private final PlaybackTracker tracker;
 	private final LyricsManager lyrics;
+	private final TimingOffsets songTiming;
 	private final String version;
 	/** Bumped whenever settings change, so cached text layouts get rebuilt. */
 	private int settingsRevision;
 
-	Artlyrics(ArtlyricsConfig config, PlaybackTracker tracker, LyricsManager lyrics, String version) {
+	Artlyrics(ArtlyricsConfig config, PlaybackTracker tracker, LyricsManager lyrics, TimingOffsets songTiming, String version) {
 		this.config = config;
 		this.tracker = tracker;
 		this.lyrics = lyrics;
+		this.songTiming = songTiming;
 		this.version = version;
 		instance = this;
 	}
@@ -44,6 +49,23 @@ public final class Artlyrics {
 
 	public LyricsManager lyrics() {
 		return lyrics;
+	}
+
+	public TimingOffsets songTiming() {
+		return songTiming;
+	}
+
+	/** This song's own timing correction (from the "earlier / later" keys), in milliseconds. */
+	public int songOffsetMs() {
+		return songTiming.get(lyrics.trackKey());
+	}
+
+	/**
+	 * The song time lyrics are shown for: the smoothed playback position plus the general timing setting and this
+	 * song's own correction.
+	 */
+	public long lyricsTimeMs() {
+		return tracker.positionMs() + config.offsetMs + songOffsetMs();
 	}
 
 	public int settingsRevision() {
@@ -78,6 +100,38 @@ public final class Artlyrics {
 			@Override
 			public long positionMs() {
 				return tracker.positionMs();
+			}
+
+			@Override
+			public long lyricsTimeMs() {
+				return mod.lyricsTimeMs();
+			}
+
+			@Override
+			public int songOffsetMs() {
+				return mod.songOffsetMs();
+			}
+
+			@Override
+			public void resetSongOffset() {
+				String key = lyrics.trackKey();
+				if (key != null) {
+					songTiming.set(key, 0);
+				}
+			}
+
+			@Override
+			public void openLyricsFolder() {
+				LocalLyrics folder = lyrics.finder().folder();
+				if (folder != null) {
+					folder.createFolder();
+					Mc.openFolder(folder.folder());
+				}
+			}
+
+			@Override
+			public String lyricsDetail() {
+				return lyrics.detail();
 			}
 
 			@Override

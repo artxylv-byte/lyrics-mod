@@ -2,8 +2,12 @@ package com.artlyrics;
 
 import com.artlyrics.compat.Mc;
 import com.artlyrics.config.ArtlyricsConfig;
+import com.artlyrics.config.TimingOffsets;
+import com.artlyrics.lyrics.LocalLyrics;
 import com.artlyrics.lyrics.LrclibClient;
+import com.artlyrics.lyrics.LyricsFinder;
 import com.artlyrics.lyrics.LyricsManager;
+import com.artlyrics.lyrics.NeteaseClient;
 import com.artlyrics.nowplaying.MediaSource;
 import com.artlyrics.nowplaying.MediaSources;
 import com.artlyrics.nowplaying.PlaybackTracker;
@@ -33,6 +37,10 @@ public final class ArtlyricsClient implements ClientModInitializer {
 	private static KeyMapping openMenu;
 	private static KeyMapping toggleLyrics;
 	private static KeyMapping toggleMode;
+	private static KeyMapping earlier;
+	private static KeyMapping later;
+	/** How much one press of the "earlier / later" keys moves this song's lyrics. */
+	private static final int NUDGE_MS = 250;
 
 	@Override
 	public void onInitializeClient() {
@@ -42,13 +50,19 @@ public final class ArtlyricsClient implements ClientModInitializer {
 		String version = FabricLoader.getInstance().getModContainer(Artlyrics.MOD_ID)
 				.map(c -> c.getMetadata().getVersion().getFriendlyString())
 				.orElse("dev");
-		LrclibClient lrclib = new LrclibClient("Artlyrics/" + version + " (Minecraft Fabric mod)");
+		Path dataDir = configDir.resolve(Artlyrics.MOD_ID);
+		String userAgent = "Artlyrics/" + version + " (Minecraft Fabric mod)";
+		LocalLyrics folder = new LocalLyrics(dataDir.resolve("lyrics"));
+		folder.createFolder();
+		LyricsFinder finder = new LyricsFinder(folder, new LrclibClient(userAgent),
+				new NeteaseClient("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"),
+				() -> new LyricsFinder.Settings(config.sourceFolder, config.sourceLrclib, config.sourceNetease, config.estimateUnsynced));
 
-		MediaSource source = MediaSources.forThisComputer(configDir.resolve(Artlyrics.MOD_ID));
+		MediaSource source = MediaSources.forThisComputer(dataDir);
 		source.setPreferredPlayer(config.preferredPlayer);
 		PlaybackTracker tracker = new PlaybackTracker(source);
-		LyricsManager lyrics = new LyricsManager(lrclib);
-		Artlyrics mod = new Artlyrics(config, tracker, lyrics, version);
+		LyricsManager lyrics = new LyricsManager(finder);
+		Artlyrics mod = new Artlyrics(config, tracker, lyrics, new TimingOffsets(dataDir.resolve("song-timing.json")), version);
 
 		if (Boolean.getBoolean("artlyrics.demo")) {
 			tracker.setDemoActive(true); // handy for development and screenshots
@@ -62,6 +76,8 @@ public final class ArtlyricsClient implements ClientModInitializer {
 		openMenu = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.artlyrics.menu", GLFW.GLFW_KEY_K, CATEGORY));
 		toggleLyrics = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.artlyrics.toggle", InputConstants.UNKNOWN.getValue(), CATEGORY));
 		toggleMode = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.artlyrics.mode", InputConstants.UNKNOWN.getValue(), CATEGORY));
+		earlier = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.artlyrics.earlier", GLFW.GLFW_KEY_LEFT_BRACKET, CATEGORY));
+		later = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.artlyrics.later", GLFW.GLFW_KEY_RIGHT_BRACKET, CATEGORY));
 
 		ClientLifecycleEvents.CLIENT_STARTED.register(client -> tracker.start());
 		ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
@@ -99,6 +115,23 @@ public final class ArtlyricsClient implements ClientModInitializer {
 			mod.settingsChanged();
 			config.save();
 			client.gui.setOverlayMessage(Component.translatable(config.displayMode.translationKey()), false);
+		}
+		int nudge = 0;
+		while (earlier.consumeClick()) {
+			nudge += NUDGE_MS;
+		}
+		while (later.consumeClick()) {
+			nudge -= NUDGE_MS;
+		}
+		if (nudge != 0) {
+			String key = mod.lyrics().trackKey();
+			if (key == null) {
+				client.gui.setOverlayMessage(Component.translatable("artlyrics.toast.no_song"), false);
+			} else {
+				int value = mod.songTiming().adjust(key, nudge);
+				String shown = (value > 0 ? "+" : "") + String.format(java.util.Locale.ROOT, "%.2f", value / 1000f) + " s";
+				client.gui.setOverlayMessage(Component.translatable("artlyrics.toast.song_timing", shown), false);
+			}
 		}
 	}
 }

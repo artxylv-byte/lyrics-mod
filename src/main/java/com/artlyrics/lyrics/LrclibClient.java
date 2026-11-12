@@ -18,7 +18,6 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.StringJoiner;
 
@@ -29,12 +28,12 @@ import java.util.StringJoiner;
  * with the original metadata and a few cleaned-up variants. Word-synced lyrics are preferred over
  * line-synced ones, and results whose length differs a lot from the playing track are skipped.
  */
-public final class LrclibClient {
+public final class LrclibClient implements LyricsSource {
 	private static final String BASE = "https://lrclib.net/api";
 	private static final Duration TIMEOUT = Duration.ofSeconds(10);
 	/** Results whose length differs by more than this are probably a different version of the song. */
 	private static final long MAX_DURATION_DIFF_MS = 15_000;
-	private static final int MAX_SEARCHES = 4;
+	private static final int MAX_SEARCHES = 7;
 
 	private final HttpClient http;
 	private final String userAgent;
@@ -47,6 +46,16 @@ public final class LrclibClient {
 				.build();
 	}
 
+	@Override
+	public String name() {
+		return "LRCLIB";
+	}
+
+	/** One search: by title and artist fields, or free text ({@code strict}: results must clearly be this song). */
+	record Search(TrackQuery wanted, String freeText, boolean strict) {
+	}
+
+	@Override
 	public LyricsResult lookup(TrackQuery track) throws InterruptedException {
 		if (!track.isUsable()) {
 			return LyricsResult.of(LyricsResult.Status.NOT_FOUND, "No track title");
@@ -65,15 +74,13 @@ public final class LrclibClient {
 				}
 			}
 
-			List<TrackQuery> queries = new ArrayList<>();
-			queries.add(track);
-			queries.addAll(track.fallbacks());
 			int searches = 0;
-			for (TrackQuery q : queries) {
+			for (Search s : searches(track)) {
 				if (searches++ >= MAX_SEARCHES) {
 					break;
 				}
-				JsonObject pick = pickBest(search(q), track);
+				JsonArray found = s.freeText() != null ? searchText(s.freeText()) : search(s.wanted());
+				JsonObject pick = pickBest(found, s.wanted(), track.durationMs(), s.strict());
 				if (pick == null) {
 					continue;
 				}
@@ -107,6 +114,33 @@ public final class LrclibClient {
 		return json != null && json.isJsonObject() ? json.getAsJsonObject() : null;
 	}
 
+	/**
+	 * Searches to try in order: the exact metadata, cleaned-up variants, then free-text searches ("artist title",
+	 * and the title alone), which find songs whose artist is spelled differently on LRCLIB.
+	 */
+	static List<Search> searches(TrackQuery track) {
+		List<Search> out = new ArrayList<>();
+		out.add(new Search(track, null, false));
+		for (TrackQuery q : track.fallbacks()) {
+			out.add(new Search(q, null, false));
+		}
+		String title = TrackQuery.cleanTitle(track.title());
+		String artist = TrackQuery.firstArtist(TrackQuery.cleanArtist(track.artist()));
+		TrackQuery cleaned = new TrackQuery(title, artist, track.album(), track.durationMs());
+		if (!artist.isBlank() && !title.isBlank()) {
+			out.add(new Search(cleaned, artist + " " + title, true));
+		}
+		if (!title.isBlank()) {
+			out.add(new Search(cleaned, title, true));
+		}
+		return out;
+	}
+
+	private JsonArray searchText(String text) throws IOException, InterruptedException {
+		JsonElement json = request("/search", Map.of("q", text));
+		return json != null && json.isJsonArray() ? json.getAsJsonArray() : new JsonArray();
+	}
+
 	private JsonArray search(TrackQuery q) throws IOException, InterruptedException {
 		Map<String, String> params = new LinkedHashMap<>();
 		if (q.artist().isBlank()) {
@@ -138,21 +172,35 @@ public final class LrclibClient {
 		return JsonParser.parseString(res.body());
 	}
 
-	/** Chooses the most useful search result for the playing track, or null if none fits. */
 	static @Nullable JsonObject pickBest(JsonArray results, TrackQuery track) {
+		return pickBest(results, track, track.durationMs(), false);
+	}
+
+	/**
+	 * Chooses the most useful search result for the playing track, or null if none fits. With {@code strict}
+	 * (free-text searches, which return anything that mentions the words) the title must match and so must the
+	 * artist, when one is known.
+	 */
+	static @Nullable JsonObject pickBest(JsonArray results, TrackQuery track, long durationMs, boolean strict) {
 		JsonObject best = null;
 		double bestScore = Double.NEGATIVE_INFINITY;
-		String wantTitle = TrackQuery.cleanTitle(track.title()).toLowerCase(Locale.ROOT);
 		for (JsonElement el : results) {
 			if (!el.isJsonObject()) {
 				continue;
 			}
 			JsonObject o = el.getAsJsonObject();
+			String trackName = TextMatch.withoutArtistPrefix(string(o, "trackName"), string(o, "artistName"));
+			boolean titleMatch = TextMatch.sameTitle(trackName, track.title());
+			boolean artistMatch = !track.artist().isBlank() && TextMatch.artistMatches(track.artist(), string(o, "artistName"));
+			if (strict && (!TextMatch.similarTitle(trackName, track.title())
+					|| (!track.artist().isBlank() && !artistMatch))) {
+				continue;
+			}
 			double score = 0;
-			if (track.durationMs() > 0) {
+			if (durationMs > 0) {
 				double dur = number(o, "duration");
 				if (dur > 0) {
-					long diff = Math.abs(Math.round(dur * 1000) - track.durationMs());
+					long diff = Math.abs(Math.round(dur * 1000) - durationMs);
 					if (diff > MAX_DURATION_DIFF_MS) {
 						continue;
 					}
@@ -169,8 +217,11 @@ public final class LrclibClient {
 			if (bool(o, "hasWordSync") && !string(o, "lyricsfile").isBlank()) {
 				score += 200;
 			}
-			if (TrackQuery.cleanTitle(string(o, "trackName")).toLowerCase(Locale.ROOT).equals(wantTitle)) {
+			if (titleMatch) {
 				score += 50;
+			}
+			if (artistMatch) {
+				score += 40;
 			}
 			if (score > bestScore) {
 				bestScore = score;
@@ -208,8 +259,9 @@ public final class LrclibClient {
 			}
 		}
 
-		if (!string(o, "plainLyrics").isBlank()) {
-			return LyricsResult.of(LyricsResult.Status.UNSYNCED_ONLY, name);
+		String plain = string(o, "plainLyrics");
+		if (!plain.isBlank()) {
+			return LyricsResult.unsynced(plain, name);
 		}
 		return LyricsResult.of(LyricsResult.Status.NOT_FOUND, name);
 	}
