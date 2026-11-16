@@ -665,6 +665,18 @@ public final class SettingsUi {
 		y = rowToggle(c, "cardArtist", "artlyrics.option.card_artist", y, config.cardArtist, v -> config.cardArtist = v);
 		y = rowToggle(c, "cardProgress", "artlyrics.option.card_progress", y, config.cardProgress, v -> config.cardProgress = v);
 		y = rowToggle(c, "cardNext", "artlyrics.option.card_next", y, config.cardNextLine, v -> config.cardNextLine = v);
+
+		y = section(c, "artlyrics.ui.section.cover", y + 2);
+		y = rowToggle(c, "cardCover", "artlyrics.option.card_cover", y, config.cardCover, v -> config.cardCover = v);
+		if (config.cardCover) {
+			y = rowToggle(c, "bigCover", "artlyrics.option.big_cover", y, config.cardBigCover, v -> config.cardBigCover = v);
+			y = rowToggle(c, "coverAnimate", "artlyrics.option.cover_animate", y, config.coverAnimate, v -> config.coverAnimate = v);
+			y = rowToggle(c, "coverOnline", "artlyrics.option.cover_online", y, config.coverOnline, v -> {
+				config.coverOnline = v;
+				host.refreshLyrics();
+			});
+			y = rowButton(c, "coversFolder", "artlyrics.option.covers_folder", "artlyrics.ui.open", y, host::openCoversFolder);
+		}
 		return y;
 	}
 
@@ -979,6 +991,22 @@ public final class SettingsUi {
 
 	private static final Lyrics SAMPLE_LYRICS = LrcParser.parse("[00:00.00]Your lyrics will glow right here\n[00:30.00]x", 60_000, "sample");
 
+	private static com.artlyrics.cover.CoverImage sampleCover;
+	private static boolean sampleCoverLoaded;
+
+	/** The demo song's animated cover, for the card preview. */
+	static synchronized com.artlyrics.cover.CoverImage sampleCover() {
+		if (!sampleCoverLoaded) {
+			sampleCoverLoaded = true;
+			try (java.io.InputStream in = SettingsUi.class.getResourceAsStream("/artlyrics/demo-cover.gif")) {
+				sampleCover = in == null ? null : com.artlyrics.cover.CoverDecoder.decode(in.readAllBytes(), "sample");
+			} catch (java.io.IOException e) {
+				sampleCover = null;
+			}
+		}
+		return sampleCover;
+	}
+
 	private UiHost sampleHost() {
 		UiHost real = host;
 		return new UiHost() {
@@ -1024,6 +1052,11 @@ public final class SettingsUi {
 			@Override
 			public String lyricsDetail() {
 				return "";
+			}
+
+			@Override
+			public com.artlyrics.cover.CoverImage cover() {
+				return sampleCover();
 			}
 
 			@Override

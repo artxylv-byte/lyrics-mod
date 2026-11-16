@@ -177,6 +177,13 @@ class SettingsUiPreviewTest {
 			return "LRCLIB";
 		}
 
+		boolean withCover = true;
+
+		@Override
+		public com.artlyrics.cover.CoverImage cover() {
+			return withCover ? SettingsUi.sampleCover() : null;
+		}
+
 		@Override
 		public @Nullable Lyrics lyrics() {
 			return track == null ? null : lyrics;

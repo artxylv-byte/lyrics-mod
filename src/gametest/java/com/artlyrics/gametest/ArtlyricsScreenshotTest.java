@@ -74,6 +74,21 @@ public class ArtlyricsScreenshotTest implements FabricClientGameTest {
 			});
 			context.runOnClient(client -> Artlyrics.get().config().nextLinePreview = false);
 
+			// The demo song has an animated cover: it must have loaded, and the big cover option shows it larger.
+			context.waitFor(client -> Artlyrics.get().covers().current() != null, 20 * 10);
+			context.runOnClient(client -> {
+				if (!Artlyrics.get().covers().current().animated()) {
+					throw new AssertionError("The demo cover should be animated");
+				}
+			});
+			shot(context, "08c-big-animated-cover", 13_200, -14f, c -> {
+				c.apply(Look.NEON);
+				c.cardBigCover = true;
+			});
+			context.waitTicks(7);
+			context.takeScreenshot("08d-big-animated-cover-later-frame");
+			context.runOnClient(client -> Artlyrics.get().config().cardBigCover = false);
+
 			context.setScreen(() -> new ArtlyricsScreen(null));
 			for (int i = 0; i < 6; i++) {
 				int page = i;

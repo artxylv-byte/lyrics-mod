@@ -21,8 +21,8 @@ lyrics drawn in the world around you.
   Notebook, Tide, Postcard, Ballroom, Blocky).
 - **Palettes** named after Minecraft materials (Amethyst, Cherry, Ember, Prismarine, Honey, Moss, Quartz, the
   shifting Aurora) or your own colors.
-- **Song card**: a small card with the title, artist, progress and the current line, in the corner you pick,
-  at the size and opacity you like.
+- **Song card**: a small card with the song's cover picture, title, artist, progress and the current line, in the
+  corner you pick, at the size and opacity you like. Animated covers (GIF) play on the card.
 - **Demo song**: a short built-in song so you can try every look without playing music.
 
 ## Where lyrics come from
@@ -66,8 +66,24 @@ Artlyrics only reads what your computer already knows is playing. It doesn't nee
 When several players are active, Artlyrics follows the one that's playing, and prefers the one named under
 **Preferred player** (default: `spotify`).
 
-The only network requests the mod makes go to the lyrics sites (`lrclib.net` and `music.163.com`), and they contain
-the track's title, artist, album and length. Switch either off on the Music page.
+The only network requests the mod makes go to the lyrics sites (`lrclib.net` and `music.163.com`) and, for covers,
+`itunes.apple.com` and the picture address the player names. They contain the track's title, artist, album and
+length. Each can be switched off in the settings.
+
+## Cover pictures
+
+The song card shows the song's cover, taken from (in this order):
+
+1. **Your covers folder**, `config/artlyrics/covers`: a picture named `Artist - Title.gif` (or `.png`, `.jpg`,
+   `.bmp`), or named after the album. Animated GIFs play on the card, so this is how you give any song an animated
+   cover. **Covers folder** on the Song Card page opens it.
+2. **The music player**: on Windows the picture Spotify, browsers and other players show in the volume pop-up; on
+   Linux the player's MPRIS picture; on macOS Spotify's artwork.
+3. **iTunes search** (switch off with **Find covers online**), when the player shares no picture.
+
+Covers fade in when the song changes, and **Big cover** makes the picture larger. Animated covers from the player
+work when the player shares a GIF. Spotify's looping Canvas videos and Apple Music's moving covers are videos only
+those apps can play, so they show as a still picture.
 
 ## Controls
 
@@ -92,7 +108,7 @@ screen, so turn on **Demo song** and watch while you adjust.
 | Lyrics | Mode, animation, animation speed, exit style, how long lines linger, sync offset, this song's timing, whole line at once, next-line preview and its visibility |
 | Look | Looks, fonts, palettes (with a custom color editor), text effect, glow, size, opacity, line width, bold, italic, ALL CAPS |
 | Placement | Skywriting height, distance, scatter, drift and arc; hover distance, height and how quickly it follows your view |
-| Song Card | Show or hide, position, size, background, artist, progress, next-line preview, with a live preview |
+| Song Card | Show or hide, position, size, background, artist, progress, next-line preview, album cover, big cover, animated covers, find covers online, covers folder, with a live preview |
 | Music | Preferred player, demo song, look lyrics up again, lyrics sources (your folder, LRCLIB, NetEase, lyrics without timing), detection status |
 
 Settings are saved in `config/artlyrics.json`, per-song timing in `config/artlyrics/song-timing.json`.

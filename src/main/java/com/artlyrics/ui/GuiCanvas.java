@@ -12,6 +12,9 @@ public final class GuiCanvas implements Canvas {
 	private final GuiGraphics graphics;
 	private final Font font;
 	private float alpha = 1f;
+	/** The scale applied by {@link #scale} calls in effect, to know how many screen pixels a cover covers. */
+	private float scale = 1f;
+	private final java.util.ArrayDeque<Float> scales = new java.util.ArrayDeque<>();
 
 	public GuiCanvas(GuiGraphics graphics, Font font) {
 		this.graphics = graphics;
@@ -75,6 +78,7 @@ public final class GuiCanvas implements Canvas {
 	@Override
 	public void push() {
 		graphics.pose().pushMatrix();
+		scales.push(scale);
 	}
 
 	@Override
@@ -85,11 +89,23 @@ public final class GuiCanvas implements Canvas {
 	@Override
 	public void scale(float s) {
 		graphics.pose().scale(s, s);
+		scale *= s;
 	}
 
 	@Override
 	public void pop() {
 		graphics.pose().popMatrix();
+		scale = scales.isEmpty() ? 1f : scales.pop();
+	}
+
+	@Override
+	public boolean cover(com.artlyrics.cover.CoverImage image, long elapsedMs, int x, int y, int size) {
+		int argb = mul(0xFFFFFFFF);
+		if ((argb >>> 24) < 4) {
+			return true;
+		}
+		int pixels = Math.round(size * scale * net.minecraft.client.Minecraft.getInstance().getWindow().getGuiScale());
+		return com.artlyrics.render.CoverTextures.INSTANCE.draw(graphics, image, elapsedMs, x, y, size, pixels, argb);
 	}
 
 	@Override

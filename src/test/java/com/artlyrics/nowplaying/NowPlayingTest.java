@@ -97,4 +97,12 @@ class NowPlayingTest {
 		public void close() {
 		}
 	}
+
+	@org.junit.jupiter.api.Test
+	void windowsCoverFilesBecomeFileAddresses() {
+		String url = WindowsMediaSource.coverUrl("/tmp/artlyrics/player-covers/cover-1.img");
+		org.junit.jupiter.api.Assertions.assertTrue(url.startsWith("file:"), url);
+		org.junit.jupiter.api.Assertions.assertEquals("", WindowsMediaSource.coverUrl(""));
+		org.junit.jupiter.api.Assertions.assertEquals("", new NowPlaying("p", "t", "a", "", 0, 0, true, 0).artUrl());
+	}
 }

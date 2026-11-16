@@ -12,7 +12,8 @@ import java.util.Locale;
  */
 final class LinuxMediaSource extends PollingMediaSource {
 	private static final String FORMAT = String.join("\t",
-			"{{playerName}}", "{{status}}", "{{position}}", "{{mpris:length}}", "{{xesam:title}}", "{{artist}}", "{{xesam:album}}");
+			"{{playerName}}", "{{status}}", "{{position}}", "{{mpris:length}}", "{{xesam:title}}", "{{artist}}", "{{xesam:album}}",
+			"{{mpris:artUrl}}");
 
 	LinuxMediaSource() {
 		super("Artlyrics-playerctl", 750);
@@ -37,7 +38,7 @@ final class LinuxMediaSource extends PollingMediaSource {
 			players.add(new NowPlaying(
 					prettyName(f[0]), f[4], f[5], f[6],
 					micros(f[3]) / 1000, micros(f[2]) / 1000,
-					status.equals("playing"), now));
+					status.equals("playing"), now, f.length > 7 ? f[7].strip() : ""));
 		}
 		return choose(players, preferred);
 	}

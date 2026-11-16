@@ -168,6 +168,14 @@ public final class ArtlyricsConfig {
 	public boolean cardArtist = true;
 	public boolean cardProgress = true;
 	public boolean cardNextLine = true;
+	/** Show the song's cover picture (from the player, the covers folder or online). */
+	public boolean cardCover = true;
+	/** A bigger cover tile. */
+	public boolean cardBigCover = false;
+	/** Play animated covers (GIFs); off shows their first frame. */
+	public boolean coverAnimate = true;
+	/** Look covers up online (iTunes search) when the player doesn't share one. */
+	public boolean coverOnline = true;
 
 	// --- Music ----------------------------------------------------------------------------------------------
 	/** When several players are active, prefer the one whose name contains this ("" = any). */

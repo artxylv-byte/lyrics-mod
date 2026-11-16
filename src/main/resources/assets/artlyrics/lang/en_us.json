@@ -199,5 +199,16 @@
   "artlyrics.toast.song_timing": "Lyrics timing for this song: %s",
   "artlyrics.toast.no_song": "No song is playing",
   "key.artlyrics.earlier": "Lyrics earlier (this song)",
-  "key.artlyrics.later": "Lyrics later (this song)"
+  "key.artlyrics.later": "Lyrics later (this song)",
+  "artlyrics.ui.section.cover": "Cover",
+  "artlyrics.option.card_cover": "Album cover",
+  "artlyrics.option.card_cover.desc": "The song's picture, from your player or online",
+  "artlyrics.option.big_cover": "Big cover",
+  "artlyrics.option.big_cover.desc": "A larger picture on the card",
+  "artlyrics.option.cover_animate": "Animated covers",
+  "artlyrics.option.cover_animate.desc": "Play animated pictures (GIF)",
+  "artlyrics.option.cover_online": "Find covers online",
+  "artlyrics.option.cover_online.desc": "Search iTunes when the player shares none",
+  "artlyrics.option.covers_folder": "Covers folder",
+  "artlyrics.option.covers_folder.desc": "Your own pictures: \"Artist - Title.gif\""
 }

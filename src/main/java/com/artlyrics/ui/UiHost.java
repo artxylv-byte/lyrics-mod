@@ -31,6 +31,15 @@ public interface UiHost {
 	/** Where the current lyrics came from, or why there are none. */
 	String lyricsDetail();
 
+	/** The current song's cover picture, or null. */
+	default @Nullable com.artlyrics.cover.CoverImage cover() {
+		return null;
+	}
+
+	/** Opens the folder where players can put their own cover pictures. */
+	default void openCoversFolder() {
+	}
+
 	@Nullable Lyrics lyrics();
 
 	LyricsManager.State lyricsState();

@@ -23,10 +23,12 @@ final class MacMediaSource extends PollingMediaSource {
 			    if (st !== 'playing' && st !== 'paused') return null;
 			    var t = app.currentTrack;
 			    var dur = Number(t.duration()) || 0;
+			    var art = '';
+			    try { if (kind === 'Spotify') art = t.artworkUrl() || ''; } catch (e) {}
 			    return { player: kind, title: t.name(), artist: t.artist(), album: t.album(),
 			             durMs: kind === 'Spotify' ? Math.round(dur) : Math.round(dur * 1000),
 			             posMs: Math.round((Number(app.playerPosition()) || 0) * 1000),
-			             playing: st === 'playing' };
+			             playing: st === 'playing', art: art };
 			  } catch (e) { return null; }
 			}
 			JSON.stringify([info('com.spotify.client', 'Spotify'), info('com.apple.Music', 'Music')].filter(function (x) { return x; }));
@@ -52,7 +54,7 @@ final class MacMediaSource extends PollingMediaSource {
 					o.has("durMs") ? o.get("durMs").getAsLong() : 0,
 					o.has("posMs") ? o.get("posMs").getAsLong() : 0,
 					o.has("playing") && o.get("playing").getAsBoolean(),
-					now));
+					now, str(o, "art")));
 		}
 		return choose(players, preferred);
 	}

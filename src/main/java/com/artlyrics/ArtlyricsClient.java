@@ -3,6 +3,7 @@ package com.artlyrics;
 import com.artlyrics.compat.Mc;
 import com.artlyrics.config.ArtlyricsConfig;
 import com.artlyrics.config.TimingOffsets;
+import com.artlyrics.cover.CoverArt;
 import com.artlyrics.lyrics.LocalLyrics;
 import com.artlyrics.lyrics.LrclibClient;
 import com.artlyrics.lyrics.LyricsFinder;
@@ -62,7 +63,10 @@ public final class ArtlyricsClient implements ClientModInitializer {
 		source.setPreferredPlayer(config.preferredPlayer);
 		PlaybackTracker tracker = new PlaybackTracker(source);
 		LyricsManager lyrics = new LyricsManager(finder);
-		Artlyrics mod = new Artlyrics(config, tracker, lyrics, new TimingOffsets(dataDir.resolve("song-timing.json")), version);
+		CoverArt covers = new CoverArt(dataDir.resolve("covers"), userAgent,
+				() -> new CoverArt.Settings(config.songCard && config.cardCover, config.coverOnline));
+		covers.createFolder();
+		Artlyrics mod = new Artlyrics(config, tracker, lyrics, new TimingOffsets(dataDir.resolve("song-timing.json")), covers, version);
 
 		if (Boolean.getBoolean("artlyrics.demo")) {
 			tracker.setDemoActive(true); // handy for development and screenshots
@@ -83,6 +87,7 @@ public final class ArtlyricsClient implements ClientModInitializer {
 		ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
 			tracker.close();
 			lyrics.close();
+			covers.close();
 			config.save();
 		});
 
@@ -90,6 +95,7 @@ public final class ArtlyricsClient implements ClientModInitializer {
 			long now = System.nanoTime();
 			tracker.frame(now);
 			lyrics.update(tracker.track(), now);
+			covers.update(tracker.track(), now);
 			handleKeys(client, mod);
 		});
 

@@ -179,6 +179,20 @@ final class JavaCanvas implements Canvas {
 	}
 
 	@Override
+	public boolean cover(com.artlyrics.cover.CoverImage image, long elapsedMs, int x, int y, int size) {
+		int[] px = image.squareFrames(Math.max(1, size * 4))[image.frameAt(elapsedMs)];
+		int side = Math.max(1, size * 4);
+		java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(side, side, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+		img.setRGB(0, 0, side, side, px, 0, side);
+		java.awt.Composite old = g.getComposite();
+		g.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER, Math.max(0f, Math.min(1f, alpha()))));
+		g.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION, java.awt.RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+		g.drawImage(img, x, y, size, size, null);
+		g.setComposite(old);
+		return true;
+	}
+
+	@Override
 	public void icon(String name, int x, int y, int argb) {
 		BufferedImage icon = ICONS.computeIfAbsent(name, n -> readImage("/assets/artlyrics/textures/gui/sprites/icon/" + n + ".png"));
 		if (icon == null) {

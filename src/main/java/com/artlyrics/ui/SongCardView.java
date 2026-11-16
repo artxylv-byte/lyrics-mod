@@ -3,6 +3,7 @@ package com.artlyrics.ui;
 import com.artlyrics.config.ArtlyricsConfig;
 import com.artlyrics.config.ArtlyricsConfig.TextFont;
 import com.artlyrics.config.Palette;
+import com.artlyrics.cover.CoverImage;
 import com.artlyrics.lyrics.LyricLine;
 import com.artlyrics.lyrics.LyricWord;
 import com.artlyrics.lyrics.Lyrics;
@@ -24,6 +25,9 @@ public final class SongCardView {
 	private static final int MARGIN = 6;
 	private static final int PAD = 6;
 	private static final int ART = 22;
+	private static final int ART_BIG = 34;
+	/** Seconds a new cover takes to fade in over the old one. */
+	private static final float COVER_FADE_S = 0.35f;
 	private static final int ROW = 10;
 	private static final int MAX_LYRIC_ROWS = 2;
 	private static final TextFont FONT = TextFont.SOFT;
@@ -36,6 +40,10 @@ public final class SongCardView {
 	private int lineKey = Integer.MIN_VALUE;
 	private long lineChangedNanos;
 	private float shownRows = -1;
+	private @Nullable CoverImage shownCover;
+	private @Nullable CoverImage previousCover;
+	private float coverFade = 1f;
+	private long coverStartNanos;
 
 	// Content measured for the frame being drawn.
 	private List<List<Piece>> rows = List.of();
@@ -105,7 +113,7 @@ public final class SongCardView {
 		computeContent(c, host, WIDTH - PAD * 2, now);
 		int target = !rows.isEmpty() ? rows.size() : status != null ? 1 : 0;
 		shownRows = shownRows < 0 ? target : shownRows + (target - shownRows) * Easing.approach(dt, 10f);
-		int h = PAD + ART + PAD + (config.cardProgress ? ROW : 0);
+		int h = PAD + art(config) + PAD + (config.cardProgress ? ROW : 0);
 		return h + Math.round(shownRows * ROW) + (shownRows > 0.05f ? PAD - 2 : 0);
 	}
 
@@ -118,31 +126,67 @@ public final class SongCardView {
 		Draw.roundRect(c, x, y, x + width, y + height, 5, Draw.withAlpha(0x14111C, config.cardOpacity));
 		Draw.roundOutline(c, x, y, x + width, y + height, 5, Draw.withAlpha(0xFFFFFF, 0.07f));
 
-		// Art tile: palette gradient with a note.
+		// Art tile: the song's cover, or a palette gradient with a note while there is none.
+		int art = art(config);
 		int ax = x + PAD;
 		int ay = y + PAD;
 		double seconds = now / 1e9;
-		c.gradientV(ax, ay, ax + ART, ay + ART, 0xFF000000 | palette.colorAt(0f, seconds), 0xFF000000 | palette.colorAt(1f, seconds));
-		c.fill(ax, ay, ax + ART, ay + ART, 0x1A000000);
-		c.icon("note", ax + (ART - 10) / 2, ay + (ART - 10) / 2, 0xF0FFFFFF);
+		c.gradientV(ax, ay, ax + art, ay + art, 0xFF000000 | palette.colorAt(0f, seconds), 0xFF000000 | palette.colorAt(1f, seconds));
+		c.fill(ax, ay, ax + art, ay + art, 0x1A000000);
+		c.icon("note", ax + (art - 10) / 2, ay + (art - 10) / 2, 0xF0FFFFFF);
+		drawCover(c, host, config, ax, ay, art, now);
 
-		int tx = ax + ART + 6;
+		int tx = ax + art + 6;
 		int textWidth = x + width - PAD - tx;
-		c.text(Draw.ellipsize(c, track.title(), FONT, textWidth), FONT, tx, ay + 2, Theme.TEXT, false);
+		int textTop = ay + (art - ART) / 2;
+		c.text(Draw.ellipsize(c, track.title(), FONT, textWidth), FONT, tx, textTop + 2, Theme.TEXT, false);
 		String sub = config.cardArtist ? track.artist() : "";
 		if (!track.playing()) {
 			sub = sub.isBlank() ? host.tr("artlyrics.card.paused") : sub + "  ·  " + host.tr("artlyrics.card.paused");
 		}
 		if (!sub.isBlank()) {
-			c.text(Draw.ellipsize(c, sub, FONT, textWidth), FONT, tx, ay + 13, Theme.MUTED, false);
+			c.text(Draw.ellipsize(c, sub, FONT, textWidth), FONT, tx, textTop + 13, Theme.MUTED, false);
 		}
 
-		int cy = ay + ART + PAD;
+		int cy = ay + art + PAD;
 		if (config.cardProgress) {
 			drawProgress(c, track, host.positionMs(), x + PAD, cy, width - PAD * 2, accent, palette);
 			cy += ROW;
 		}
 		drawLyrics(c, x + PAD, cy, width - PAD * 2, cardFont(config.font), now);
+	}
+
+	private static int art(ArtlyricsConfig config) {
+		return config.cardBigCover ? ART_BIG : ART;
+	}
+
+	/** The cover over the art tile, fading smoothly from the previous one (or from the plain tile). */
+	private void drawCover(Canvas c, UiHost host, ArtlyricsConfig config, int x, int y, int size, long now) {
+		CoverImage cover = config.cardCover ? host.cover() : null;
+		if (cover != shownCover) {
+			previousCover = shownCover;
+			shownCover = cover;
+			coverFade = 0f;
+			coverStartNanos = now;
+		}
+		coverFade = Math.min(1f, coverFade + dt / COVER_FADE_S);
+		float eased = Easing.inOutSine(coverFade);
+		long elapsedMs = config.coverAnimate ? (now - coverStartNanos) / 1_000_000L : 0L;
+		float alpha = c.alpha();
+		if (previousCover != null && eased < 1f) {
+			c.setAlpha(alpha * (1f - eased));
+			c.cover(previousCover, config.coverAnimate ? elapsedMs : 0L, x, y, size);
+		}
+		if (shownCover != null) {
+			c.setAlpha(alpha * eased);
+			if (!c.cover(shownCover, elapsedMs, x, y, size)) {
+				coverFade = 0f; // still being prepared: start the fade once it can be drawn
+			}
+		}
+		c.setAlpha(alpha);
+		if (eased >= 1f) {
+			previousCover = null;
+		}
 	}
 
 	private void drawProgress(Canvas c, NowPlaying track, long positionMs, int x, int y, int width, int accent, Palette palette) {

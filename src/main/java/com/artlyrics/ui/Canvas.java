@@ -24,6 +24,12 @@ public interface Canvas {
 	/** A 10x10 icon from {@code assets/artlyrics/textures/gui/sprites/icon/<name>.png}, tinted. */
 	void icon(String name, int x, int y, int argb);
 
+	/**
+	 * Draws a cover picture into the square (x, y, size): the frame for {@code elapsedMs} when it's animated.
+	 * Returns false if it can't be drawn yet.
+	 */
+	boolean cover(com.artlyrics.cover.CoverImage image, long elapsedMs, int x, int y, int size);
+
 	void push();
 
 	void translate(float x, float y);

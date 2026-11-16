@@ -30,6 +30,7 @@ final class WindowsMediaSource implements MediaSource {
 	private static final int MAX_QUICK_FAILURES = 5;
 
 	private final Path scriptPath;
+	private final Path coverDir;
 	private volatile boolean running;
 	private volatile String preferred = "spotify";
 	private volatile @Nullable Process process;
@@ -39,6 +40,7 @@ final class WindowsMediaSource implements MediaSource {
 
 	WindowsMediaSource(Path dataDir) {
 		this.scriptPath = dataDir.resolve("media-windows.ps1");
+		this.coverDir = dataDir.resolve("player-covers");
 	}
 
 	@Override
@@ -90,7 +92,8 @@ final class WindowsMediaSource implements MediaSource {
 				"-ExecutionPolicy", "Bypass",
 				"-File", scriptPath.toAbsolutePath().toString(),
 				"-ParentPid", Long.toString(ProcessHandle.current().pid()),
-				"-Prefer", prefer.isBlank() ? "spotify" : prefer))
+				"-Prefer", prefer.isBlank() ? "spotify" : prefer,
+				"-CoverDir", coverDirArg()))
 				.redirectErrorStream(true)
 				.start();
 		process = p;
@@ -106,6 +109,16 @@ final class WindowsMediaSource implements MediaSource {
 		} finally {
 			p.destroy();
 			process = null;
+		}
+	}
+
+	/** Where the helper saves cover pictures ("" if the folder can't be made, which turns covers off). */
+	private String coverDirArg() {
+		try {
+			Files.createDirectories(coverDir);
+			return coverDir.toAbsolutePath().toString();
+		} catch (IOException e) {
+			return "";
 		}
 	}
 
@@ -140,9 +153,21 @@ final class WindowsMediaSource implements MediaSource {
 				pos += nowMs - updated;
 			}
 			current = new NowPlaying(playerName(str(o, "app")), str(o, "title"), str(o, "artist"), str(o, "album"),
-					Math.max(0, num(o, "endMs")), pos, playing, now);
+					Math.max(0, num(o, "endMs")), pos, playing, now, coverUrl(str(o, "cover")));
 		} catch (JsonParseException | IllegalStateException | UnsupportedOperationException e) {
 			// ignore malformed lines
+		}
+	}
+
+	/** The helper's saved cover file as a {@code file:} address, or "". */
+	static String coverUrl(String path) {
+		if (path == null || path.isBlank()) {
+			return "";
+		}
+		try {
+			return Path.of(path).toUri().toString();
+		} catch (java.nio.file.InvalidPathException e) {
+			return "";
 		}
 	}
 

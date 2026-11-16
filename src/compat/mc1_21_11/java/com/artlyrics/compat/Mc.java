@@ -67,4 +67,29 @@ public final class Mc {
 	public static void openFolder(java.nio.file.Path folder) {
 		net.minecraft.util.Util.getPlatform().openPath(folder);
 	}
+
+	/** A texture the mod made while running (cover pictures). */
+	public record Tex(Identifier id) {
+	}
+
+	/** Uploads a picture as a texture. Render thread only; the texture owns {@code image} afterwards. */
+	public static Tex registerTexture(String path, com.mojang.blaze3d.platform.NativeImage image) {
+		Identifier id = Identifier.fromNamespaceAndPath(MOD_ID, path);
+		net.minecraft.client.renderer.texture.DynamicTexture texture =
+				new net.minecraft.client.renderer.texture.DynamicTexture(() -> "Artlyrics " + path, image);
+		net.minecraft.client.Minecraft.getInstance().getTextureManager().register(id, texture);
+		return new Tex(id);
+	}
+
+	/** Frees a texture made with {@link #registerTexture}. Render thread only. */
+	public static void releaseTexture(Tex tex) {
+		net.minecraft.client.Minecraft.getInstance().getTextureManager().release(tex.id());
+	}
+
+	/** Draws the region (u, v, regionWidth × regionHeight) of a texture into (x, y, width × height). */
+	public static void blitTexture(GuiGraphics graphics, Tex tex, int x, int y, int width, int height, float u, float v,
+								   int regionWidth, int regionHeight, int textureWidth, int textureHeight, int argb) {
+		graphics.blit(RenderPipelines.GUI_TEXTURED, tex.id(), x, y, u, v, width, height, regionWidth, regionHeight,
+				textureWidth, textureHeight, argb);
+	}
 }

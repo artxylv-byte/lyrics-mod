@@ -2,11 +2,12 @@
 #
 # Reads the "System Media Transport Controls" (the same info the Windows volume pop-up shows for
 # Spotify, browsers, etc.) and prints one JSON line per update to stdout. Started by the Artlyrics
-# Minecraft mod; it exits on its own when Minecraft closes. It only reads track info, it never
-# controls playback and never touches the network.
+# Minecraft mod; it exits on its own when Minecraft closes. It only reads track info (and saves the
+# track's cover picture into the mod's folder), it never controls playback and never touches the network.
 param(
     [int]$ParentPid = 0,
-    [string]$Prefer = 'spotify'
+    [string]$Prefer = 'spotify',
+    [string]$CoverDir = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -39,6 +40,36 @@ try {
     exit 2
 }
 
+# Cover pictures are optional: if anything about them fails, track info still works.
+$streamType = $null
+try {
+    $null = [Windows.Storage.Streams.IRandomAccessStreamWithContentType, Windows.Storage.Streams, ContentType = WindowsRuntime]
+    $streamType = [Windows.Storage.Streams.IRandomAccessStreamWithContentType]
+} catch {
+    $streamType = $null
+}
+
+# Returns the track's thumbnail as bytes, or $null.
+function Read-Cover($props) {
+    if ($null -eq $streamType -or -not $CoverDir -or $null -eq $props.Thumbnail) { return $null }
+    $winStream = Await ($props.Thumbnail.OpenReadAsync()) $streamType
+    try {
+        $netStream = [System.IO.WindowsRuntimeStreamExtensions]::AsStreamForRead($winStream)
+        $buffer = New-Object System.IO.MemoryStream
+        $netStream.CopyTo($buffer)
+        $netStream.Dispose()
+        return ,$buffer.ToArray()
+    } finally {
+        $winStream.Dispose()
+    }
+}
+
+$coverKey = ''
+$coverPath = ''
+$coverHash = ''
+$coverSerial = 0
+$coverChecks = 0
+
 $tick = 0
 while ($true) {
     $tick++
@@ -65,6 +96,35 @@ while ($true) {
         } else {
             $props = Await ($pick.TryGetMediaPropertiesAsync()) $propsType
             $timeline = $pick.GetTimelineProperties()
+
+            # The cover: read when the song changes, and a few more times shortly after, because players
+            # often send the picture a moment after the title. Saved under a new name whenever it changes.
+            $key = "$($pick.SourceAppUserModelId)|$($props.Title)|$($props.Artist)|$($props.AlbumTitle)"
+            if ($key -ne $coverKey) {
+                $coverKey = $key
+                $coverChecks = 0
+                $coverPath = ''
+                $coverHash = ''
+            }
+            if ($coverChecks -lt 4 -and ($coverChecks -eq 0 -or ($tick % 3) -eq 0)) {
+                $coverChecks++
+                try {
+                    $bytes = Read-Cover $props
+                    if ($null -ne $bytes -and $bytes.Length -gt 0) {
+                        $hash = [System.BitConverter]::ToString([System.Security.Cryptography.MD5]::Create().ComputeHash($bytes))
+                        if ($hash -ne $coverHash) {
+                            $coverSerial++
+                            $file = Join-Path $CoverDir ('cover-' + ($coverSerial % 4) + '.img')
+                            [System.IO.File]::WriteAllBytes($file, $bytes)
+                            $coverHash = $hash
+                            $coverPath = $file
+                        }
+                    }
+                } catch {
+                    # no picture this time
+                }
+            }
+
             Emit ([ordered]@{
                 app       = [string]$pick.SourceAppUserModelId
                 title     = [string]$props.Title
@@ -75,6 +135,7 @@ while ($true) {
                 endMs     = [long]$timeline.EndTime.TotalMilliseconds
                 updatedMs = [long]$timeline.LastUpdatedTime.ToUnixTimeMilliseconds()
                 nowMs     = [long][DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+                cover     = [string]$coverPath
             })
         }
     } catch {

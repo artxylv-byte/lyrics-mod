@@ -96,7 +96,7 @@ public final class LocalLyrics implements LyricsSource {
 	}
 
 	/** How well a file name fits the song: 3 = artist and title, 2 = title only (no artist in the name), 0 = no. */
-	static int matchName(String baseName, TrackQuery track) {
+	public static int matchName(String baseName, TrackQuery track) {
 		List<TrackQuery> candidates = new java.util.ArrayList<>();
 		candidates.add(track);
 		candidates.addAll(track.fallbacks());

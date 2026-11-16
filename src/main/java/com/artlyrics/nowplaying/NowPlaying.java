@@ -11,14 +11,21 @@ import java.util.Objects;
  * @param durationMs     track length, 0 if unknown
  * @param positionMs     playback position at the moment of sampling
  * @param sampledAtNanos {@link System#nanoTime()} when the position was sampled
+ * @param artUrl         the cover picture the player shares ({@code file:} or {@code https:} address), "" if none
  */
 public record NowPlaying(String player, String title, String artist, String album,
-						 long durationMs, long positionMs, boolean playing, long sampledAtNanos) {
+						 long durationMs, long positionMs, boolean playing, long sampledAtNanos, String artUrl) {
 	public NowPlaying {
 		player = Objects.requireNonNullElse(player, "");
 		title = Objects.requireNonNullElse(title, "").strip();
 		artist = Objects.requireNonNullElse(artist, "").strip();
 		album = Objects.requireNonNullElse(album, "").strip();
+		artUrl = Objects.requireNonNullElse(artUrl, "").strip();
+	}
+
+	public NowPlaying(String player, String title, String artist, String album,
+					  long durationMs, long positionMs, boolean playing, long sampledAtNanos) {
+		this(player, title, artist, album, durationMs, positionMs, playing, sampledAtNanos, "");
 	}
 
 	/** Position extrapolated to {@code nowNanos}. */

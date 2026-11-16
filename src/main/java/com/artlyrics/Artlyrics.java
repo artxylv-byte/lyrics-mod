@@ -22,15 +22,18 @@ public final class Artlyrics {
 	private final PlaybackTracker tracker;
 	private final LyricsManager lyrics;
 	private final TimingOffsets songTiming;
+	private final com.artlyrics.cover.CoverArt covers;
 	private final String version;
 	/** Bumped whenever settings change, so cached text layouts get rebuilt. */
 	private int settingsRevision;
 
-	Artlyrics(ArtlyricsConfig config, PlaybackTracker tracker, LyricsManager lyrics, TimingOffsets songTiming, String version) {
+	Artlyrics(ArtlyricsConfig config, PlaybackTracker tracker, LyricsManager lyrics, TimingOffsets songTiming,
+			  com.artlyrics.cover.CoverArt covers, String version) {
 		this.config = config;
 		this.tracker = tracker;
 		this.lyrics = lyrics;
 		this.songTiming = songTiming;
+		this.covers = covers;
 		this.version = version;
 		instance = this;
 	}
@@ -49,6 +52,10 @@ public final class Artlyrics {
 
 	public LyricsManager lyrics() {
 		return lyrics;
+	}
+
+	public com.artlyrics.cover.CoverArt covers() {
+		return covers;
 	}
 
 	public TimingOffsets songTiming() {
@@ -162,6 +169,18 @@ public final class Artlyrics {
 			@Override
 			public void refreshLyrics() {
 				lyrics.refresh();
+				covers.refresh();
+			}
+
+			@Override
+			public com.artlyrics.cover.CoverImage cover() {
+				return covers.current();
+			}
+
+			@Override
+			public void openCoversFolder() {
+				covers.createFolder();
+				Mc.openFolder(covers.folder());
 			}
 
 			@Override
