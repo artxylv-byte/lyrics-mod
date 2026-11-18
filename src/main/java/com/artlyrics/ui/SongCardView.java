@@ -24,6 +24,12 @@ import java.util.Locale;
  */
 public final class SongCardView {
 	public static final int WIDTH = 176;
+	/** Width of the player style. */
+	public static final int PLAYER_WIDTH = 204;
+	private static final int PLAYER_ART = 52;
+	/** How far the record comes out from behind the cover while playing. */
+	private static final int VINYL_OUT = 20;
+	private static final int BARS = 20;
 	private static final int MARGIN = 6;
 	private static final int PAD = 6;
 	private static final int ART = 22;
@@ -46,6 +52,12 @@ public final class SongCardView {
 	private @Nullable CoverImage previousCover;
 	private float coverFade = 1f;
 	private long coverStartNanos;
+	/** Player style: how far the record is out (0..1), its turn in revolutions, and the bars' heights. */
+	private float vinylOut;
+	private double vinylTurn;
+	private final float[] bars = new float[BARS];
+	/** Milliseconds since the word being sung started, for the bars to jump on. */
+	private long beatAgeMs = Long.MAX_VALUE;
 
 	// Content measured for the frame being drawn.
 	private List<List<Piece>> rows = List.of();
@@ -79,7 +91,7 @@ public final class SongCardView {
 
 		float s = config.cardScale;
 		int height = measure(c, host, now, false);
-		int w = Math.round(WIDTH * s);
+		int w = Math.round(width(config) * s);
 		int h = Math.round(height * s);
 		int x = switch (config.cardCorner) {
 			case TOP_LEFT, BOTTOM_LEFT -> MARGIN;
@@ -100,7 +112,7 @@ public final class SongCardView {
 		c.scale(s);
 		float alpha = c.alpha();
 		c.setAlpha(alpha * eased);
-		drawCard(c, host, lastTrack, 0, 0, WIDTH, height, now);
+		drawCard(c, host, lastTrack, 0, 0, width(config), height, now);
 		c.setAlpha(alpha);
 		c.pop();
 	}
@@ -114,7 +126,7 @@ public final class SongCardView {
 			tick(now);
 		}
 		ArtlyricsConfig config = host.config();
-		computeContent(c, host, WIDTH - PAD * 2, now);
+		computeContent(c, host, width(config) - PAD * 2, now);
 		int target = !rows.isEmpty() ? rows.size() : status != null ? 1 : 0;
 		shownRows = shownRows < 0 ? target : shownRows + (target - shownRows) * Easing.approach(dt, 10f);
 		int h = PAD + art(config) + PAD + (config.cardProgress ? ROW : 0);
@@ -140,6 +152,10 @@ public final class SongCardView {
 		int ax = x + PAD;
 		int ay = y + PAD;
 		double seconds = now / 1e9;
+		boolean player = config.cardStyle == ArtlyricsConfig.CardStyle.PLAYER;
+		if (player && config.cardVinyl) {
+			drawVinyl(c, track, palette, ax, ay, art, seconds);
+		}
 		c.gradientV(ax, ay, ax + art, ay + art, 0xFF000000 | palette.colorAt(0f, seconds), 0xFF000000 | palette.colorAt(1f, seconds));
 		c.fill(ax, ay, ax + art, ay + art, 0x1A000000);
 		if (holiday != null) {
@@ -155,9 +171,9 @@ public final class SongCardView {
 		}
 		drawCover(c, host, config, ax, ay, art, now);
 
-		int tx = ax + art + 6;
+		int tx = ax + art + (player ? (config.cardVinyl ? VINYL_OUT + 8 : 8) : 6);
 		int textWidth = x + width - PAD - tx;
-		int textTop = ay + (art - ART) / 2;
+		int textTop = player ? ay + 3 : ay + (art - ART) / 2;
 		c.text(Draw.ellipsize(c, track.title(), FONT, textWidth), FONT, tx, textTop + 2, Theme.TEXT, false);
 		String sub = config.cardArtist ? track.artist() : "";
 		if (!track.playing()) {
@@ -165,6 +181,9 @@ public final class SongCardView {
 		}
 		if (!sub.isBlank()) {
 			c.text(Draw.ellipsize(c, sub, FONT, textWidth), FONT, tx, textTop + 13, Theme.MUTED, false);
+		}
+		if (player && config.cardVisualizer) {
+			drawBars(c, track, palette, tx, ay + 28, textWidth, art - 28, seconds);
 		}
 
 		int cy = ay + art + PAD;
@@ -193,7 +212,76 @@ public final class SongCardView {
 	}
 
 	private static int art(ArtlyricsConfig config) {
+		if (config.cardStyle == ArtlyricsConfig.CardStyle.PLAYER) {
+			return PLAYER_ART;
+		}
 		return config.cardBigCover ? ART_BIG : ART;
+	}
+
+	/** The card's width for its style (unscaled). */
+	public static int width(ArtlyricsConfig config) {
+		return config.cardStyle == ArtlyricsConfig.CardStyle.PLAYER ? PLAYER_WIDTH : WIDTH;
+	}
+
+	/**
+	 * A record behind the cover. It slides out while the song plays and back in when paused, and turns at about
+	 * the speed of a real one; the shine on its grooves and the dot on the label show it turning.
+	 */
+	private void drawVinyl(Canvas c, NowPlaying track, Palette palette, int ax, int ay, int art, double seconds) {
+		vinylOut += ((track.playing() ? 1f : 0.25f) - vinylOut) * Easing.approach(dt, 5f);
+		if (track.playing()) {
+			vinylTurn += dt * 0.55; // 33 rpm
+		}
+		float r = art / 2f - 1f;
+		float cx = ax + art / 2f + VINYL_OUT * Easing.inOutSine(vinylOut);
+		float cy = ay + art / 2f;
+		Draw.circle(c, cx, cy, r, 0xFF101014);
+		for (float g = r - 2; g > r * 0.42f; g -= 2.5f) {
+			Draw.circle(c, cx, cy, g, 0xFF26262E);
+			Draw.circle(c, cx, cy, g - 1f, 0xFF15151A);
+		}
+		// Shine: two soft spots on opposite sides of the grooves.
+		double angle = vinylTurn * Math.PI * 2;
+		for (int k = 0; k < 2; k++) {
+			double a = angle + k * Math.PI;
+			for (int i = 0; i < 4; i++) {
+				float rr = r * (0.58f + i * 0.1f);
+				float px = cx + (float) Math.cos(a) * rr;
+				float py = cy + (float) Math.sin(a) * rr;
+				c.fill(Math.round(px) - 1, Math.round(py) - 1, Math.round(px) + 1, Math.round(py) + 1, 0x40FFFFFF);
+			}
+		}
+		// Label in the palette's colors, with a dot that goes round.
+		float label = r * 0.36f;
+		Draw.circle(c, cx, cy, label, 0xFF000000 | palette.colorAt(0.3f, seconds));
+		Draw.circle(c, cx, cy, label * 0.62f, 0xFF000000 | palette.colorAt(0.8f, seconds));
+		float dx = cx + (float) Math.cos(angle) * label * 0.75f;
+		float dy = cy + (float) Math.sin(angle) * label * 0.75f;
+		c.fill(Math.round(dx) - 1, Math.round(dy) - 1, Math.round(dx) + 1, Math.round(dy) + 1, 0xC0FFFFFF);
+		Draw.circle(c, cx, cy, 1.5f, 0xFF0A0A0C);
+	}
+
+	/** Bars that move to the music: each sung word gives them a kick, and they settle while paused. */
+	private void drawBars(Canvas c, NowPlaying track, Palette palette, int x, int y, int width, int height, double seconds) {
+		float kick = beatAgeMs == Long.MAX_VALUE ? 0f : (float) Math.exp(-beatAgeMs / 260.0);
+		float energy = track.playing() ? 0.3f + 0.7f * kick : 0.05f;
+		int gap = 2;
+		int bw = Math.max(2, (width - gap * (BARS - 1)) / BARS);
+		int bx = x;
+		int bottom = y + height;
+		for (int i = 0; i < BARS; i++) {
+			double wave = 0.5 + 0.5 * Math.sin(seconds * (3.1 + (i * 7 % 5) * 0.9) + i * 1.7)
+					* Math.sin(seconds * (1.3 + (i % 3) * 0.6) + i * 0.4);
+			float shape = 0.55f + 0.45f * (float) Math.sin(Math.PI * (i + 0.5) / BARS); // taller in the middle
+			float target = Math.max(0.08f, energy * shape * (0.35f + 0.65f * (float) wave));
+			// Quick to jump up, slower to fall: like a real meter.
+			float speed = target > bars[i] ? 18f : 6f;
+			bars[i] += (target - bars[i]) * Easing.approach(dt, speed);
+			int bh = Math.max(1, Math.round(bars[i] * height));
+			int color = 0xFF000000 | palette.colorAt(i / (float) (BARS - 1), seconds);
+			Draw.roundRect(c, bx, bottom - bh, bx + bw, bottom, 1, Draw.withAlpha(color & 0xFFFFFF, 0.9f));
+			bx += bw + gap;
+		}
 	}
 
 	/** The cover over the art tile, fading smoothly from the previous one (or from the plain tile). */
@@ -307,6 +395,13 @@ public final class SongCardView {
 						break;
 					}
 				}
+			}
+		}
+		beatAgeMs = Long.MAX_VALUE;
+		if (live) {
+			int active = line.wordIndexAt(timeMs);
+			if (active >= 0) {
+				beatAgeMs = Math.max(0, timeMs - line.words().get(active).startMs());
 			}
 		}
 		if (key != lineKey) {

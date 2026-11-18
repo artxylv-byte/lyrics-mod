@@ -109,4 +109,14 @@ public final class Mc {
 	public static void openUrl(String url) {
 		net.minecraft.Util.getPlatform().openUri(url);
 	}
+
+	/** A buffer for flat, see-through colored shapes in the world (sky gradients, beams, petals). */
+	public static com.mojang.blaze3d.vertex.VertexConsumer flatBuffer(MultiBufferSource buffers) {
+		return buffers.getBuffer(net.minecraft.client.renderer.RenderType.textBackground());
+	}
+
+	/** A buffer for pictures from {@code assets/artlyrics/<path>} drawn in the world, full bright. */
+	public static com.mojang.blaze3d.vertex.VertexConsumer textureBuffer(MultiBufferSource buffers, String path) {
+		return buffers.getBuffer(net.minecraft.client.renderer.RenderType.text(ResourceLocation.fromNamespaceAndPath(MOD_ID, path)));
+	}
 }

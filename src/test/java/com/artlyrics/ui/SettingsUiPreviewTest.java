@@ -87,6 +87,32 @@ class SettingsUiPreviewTest {
 			}
 			canvas.save(OUT.resolve("card-" + look.name().toLowerCase() + ".png"));
 		}
+		for (Look look : new Look[] {Look.STARLIGHT, Look.NOTEBOOK}) {
+			FakeHost host = new FakeHost();
+			host.config.apply(look);
+			host.config.cardStyle = com.artlyrics.config.ArtlyricsConfig.CardStyle.PLAYER;
+			JavaCanvas canvas = new JavaCanvas(W, H, SCALE);
+			canvas.paintBackdrop();
+			SongCardView view = new SongCardView();
+			long t = 1_000_000_000L;
+			for (int i = 0; i < 30; i++) {
+				view.drawHud(i == 29 ? canvas : new JavaCanvas(W, H, 1), host, t + i * 50_000_000L);
+			}
+			canvas.save(OUT.resolve("card-player-" + look.name().toLowerCase() + ".png"));
+		}
+	}
+
+	@Test
+	void renderSkiesAndPlayerCardPages() throws Exception {
+		FakeHost skies = new FakeHost();
+		skies.config.sky = com.artlyrics.sky.SkyTheme.AURORA;
+		render(skies, SettingsUi.Page.SKIES, 0, "skies-aurora", W, H);
+		render(skies, SettingsUi.Page.SKIES, 400, "skies-options", W, H);
+		render(skies, SettingsUi.Page.HOME, 0, "home-aurora", W, H);
+		FakeHost player = new FakeHost();
+		player.config.cardStyle = com.artlyrics.config.ArtlyricsConfig.CardStyle.PLAYER;
+		render(player, SettingsUi.Page.CARD, 0, "card-page-player", W, H);
+		render(new FakeHost(), SettingsUi.Page.HOME, 0, "home-compact", 341, 192);
 	}
 
 	@Test
@@ -97,10 +123,12 @@ class SettingsUiPreviewTest {
 		// Past the opening animation, so the panel is in its final place.
 		ui.render(canvas, -1, -1, 1_000_000_000L);
 		ui.render(canvas, -1, -1, 1_500_000_000L);
-		// Click the "Look" item in the sidebar (third entry).
+		// Click the "Look" item in the sidebar (rows get tighter when there are many pages).
 		int panelX = (W - Math.min(470, W - 16)) / 2;
-		int panelY = (H - Math.min(280, H - 16)) / 2;
-		ui.mouseClicked(panelX + 30, panelY + 40 + 2 * 20 + 5, 0);
+		int panelH = Math.min(280, H - 16);
+		int panelY = (H - panelH) / 2;
+		int step = Math.max(14, Math.min(20, (panelH - 30 - 40) / SettingsUi.Page.values().length));
+		ui.mouseClicked(panelX + 30, panelY + 40 + SettingsUi.Page.LOOK.ordinal() * step + 5, 0);
 		assertEquals(SettingsUi.Page.LOOK, ui.page());
 		// Click the master switch: lyrics turn off.
 		ui.render(canvas, -1, -1, 2_000_000_000L);

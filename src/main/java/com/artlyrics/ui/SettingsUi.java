@@ -10,6 +10,7 @@ import com.artlyrics.config.Look;
 import com.artlyrics.config.LyricStyle;
 import com.artlyrics.config.Palette;
 import com.artlyrics.holiday.HolidayFinder;
+import com.artlyrics.sky.SkyTheme;
 import com.artlyrics.nowplaying.MediaCommand;
 import com.artlyrics.spotify.SpotifyAccount;
 import com.artlyrics.holiday.HolidayTheme;
@@ -36,8 +37,8 @@ import java.util.function.IntConsumer;
  */
 public final class SettingsUi {
 	public enum Page {
-		NOW_PLAYING("note"), LYRICS("lyrics"), LOOK("palette"), HOLIDAYS("star"), PLACEMENT("compass"), CARD("card"),
-		MUSIC("headphones"), SOURCES("search");
+		HOME("home"), NOW_PLAYING("note"), LYRICS("lyrics"), LOOK("palette"), SKIES("sky"), HOLIDAYS("star"), PLACEMENT("compass"),
+		CARD("card"), MUSIC("headphones"), SOURCES("search");
 
 		final String icon;
 
@@ -63,7 +64,7 @@ public final class SettingsUi {
 	private final UiHost host;
 	private final SongCardView cardPreview = new SongCardView();
 
-	private Page page = Page.NOW_PLAYING;
+	private Page page = Page.HOME;
 	private boolean started;
 	private long openedNanos;
 	private long pageNanos;
@@ -182,6 +183,8 @@ public final class SettingsUi {
 			case MUSIC -> pageMusic(c, start);
 			case HOLIDAYS -> pageHolidays(c, start);
 			case SOURCES -> pageSources(c, start);
+			case HOME -> pageHome(c, start);
+			case SKIES -> pageSkies(c, start);
 		};
 		c.unclip();
 		c.setAlpha(baseAlpha * open);
@@ -206,27 +209,30 @@ public final class SettingsUi {
 		}
 
 		int navTop = py + 40;
+		// Fit every page: rows get a little tighter when there are many.
+		int step = Math.max(14, Math.min(NAV_H + 2, (py + ph - 30 - navTop) / Page.values().length));
+		int itemH = step - 2;
 		int selectedIndex = page.ordinal();
-		float targetY = navTop + selectedIndex * (NAV_H + 2);
+		float targetY = navTop + selectedIndex * step;
 		navY = navY < 0 ? targetY : navY + (targetY - navY) * Easing.approach(dt, 16f);
 		int sx0 = px + 6;
 		int sx1 = px + side - 6;
-		Draw.roundRect(c, sx0, Math.round(navY), sx1, Math.round(navY) + NAV_H, 4, Draw.withAlpha(accent, 0.18f));
-		c.fill(sx0, Math.round(navY) + 4, sx0 + 2, Math.round(navY) + NAV_H - 4, accent);
+		Draw.roundRect(c, sx0, Math.round(navY), sx1, Math.round(navY) + itemH, 4, Draw.withAlpha(accent, 0.18f));
+		c.fill(sx0, Math.round(navY) + 4, sx0 + 2, Math.round(navY) + itemH - 4, accent);
 
 		for (Page p : Page.values()) {
-			int iy = navTop + p.ordinal() * (NAV_H + 2);
-			boolean hovered = inside(sx0, iy, sx1, iy + NAV_H);
+			int iy = navTop + p.ordinal() * step;
+			boolean hovered = inside(sx0, iy, sx1, iy + itemH);
 			float h = hover("nav:" + p, hovered && p != page);
 			if (h > 0.01f) {
-				Draw.roundRect(c, sx0, iy, sx1, iy + NAV_H, 4, Draw.withAlpha(Theme.HIGHLIGHT, 0.05f * h));
+				Draw.roundRect(c, sx0, iy, sx1, iy + itemH, 4, Draw.withAlpha(Theme.HIGHLIGHT, 0.05f * h));
 			}
 			int color = p == page ? Theme.TEXT : Draw.lerpArgb(Theme.MUTED, Theme.TEXT, h);
-			c.icon(p.icon, sx0 + (compact ? (sx1 - sx0 - 10) / 2 : 6), iy + 4, p == page ? accent : color);
+			c.icon(p.icon, sx0 + (compact ? (sx1 - sx0 - 10) / 2 : 6), iy + (itemH - 10) / 2, p == page ? accent : color);
 			if (!compact) {
-				c.text(host.tr(p.key()), UI, sx0 + 21, iy + 5, color, false);
+				c.text(host.tr(p.key()), UI, sx0 + 21, iy + (itemH - 8) / 2, color, false);
 			}
-			hits.add(new Hit(sx0, iy, sx1, iy + NAV_H, () -> setPage(p), null, 0, 0));
+			hits.add(new Hit(sx0, iy, sx1, iy + itemH, () -> setPage(p), null, 0, 0));
 		}
 
 		if (!compact) {
@@ -686,15 +692,22 @@ public final class SettingsUi {
 			int h = cardPreview.measure(c, previewHost, now, true);
 			int areaH = h + 16;
 			Draw.roundRect(c, cx, y, cx + cw, y + areaH, 6, Theme.PREVIEW_BG);
-			float s = Math.min(1f, (cw - 16) / (float) SongCardView.WIDTH);
+			int cardW = SongCardView.width(config);
+			float s = Math.min(1f, (cw - 16) / (float) cardW);
 			c.push();
-			c.translate(cx + (cw - SongCardView.WIDTH * s) / 2f, y + 8);
+			c.translate(cx + (cw - cardW * s) / 2f, y + 8);
 			c.scale(s);
-			cardPreview.drawCard(c, previewHost, track, 0, 0, SongCardView.WIDTH, h, now);
+			cardPreview.drawCard(c, previewHost, track, 0, 0, cardW, h, now);
 			c.pop();
 			y += areaH + 6;
 		}
 		y = rowToggle(c, "card", "artlyrics.option.song_card", y, config.songCard, v -> config.songCard = v);
+		y = rowSelector(c, "cardStyle", "artlyrics.option.card_style", y, config.cardStyle.ordinal(),
+				labels(ArtlyricsConfig.CardStyle.values(), k -> k.translationKey()), i -> config.cardStyle = ArtlyricsConfig.CardStyle.values()[i]);
+		if (config.cardStyle == ArtlyricsConfig.CardStyle.PLAYER) {
+			y = rowToggle(c, "cardVinyl", "artlyrics.option.card_vinyl", y, config.cardVinyl, v -> config.cardVinyl = v);
+			y = rowToggle(c, "cardBars", "artlyrics.option.card_bars", y, config.cardVisualizer, v -> config.cardVisualizer = v);
+		}
 		y = rowSelector(c, "corner", "artlyrics.option.card_corner", y, config.cardCorner.ordinal(),
 				labels(ArtlyricsConfig.CardCorner.values(), k -> k.translationKey()), i -> config.cardCorner = ArtlyricsConfig.CardCorner.values()[i]);
 		y = rowSlider(c, "cardScale", "artlyrics.option.card_scale", y, config.cardScale, 0.6f, 1.6f,
@@ -708,7 +721,9 @@ public final class SettingsUi {
 		y = section(c, "artlyrics.ui.section.cover", y + 2);
 		y = rowToggle(c, "cardCover", "artlyrics.option.card_cover", y, config.cardCover, v -> config.cardCover = v);
 		if (config.cardCover) {
-			y = rowToggle(c, "bigCover", "artlyrics.option.big_cover", y, config.cardBigCover, v -> config.cardBigCover = v);
+			if (config.cardStyle == ArtlyricsConfig.CardStyle.COMPACT) {
+				y = rowToggle(c, "bigCover", "artlyrics.option.big_cover", y, config.cardBigCover, v -> config.cardBigCover = v);
+			}
 			y = rowToggle(c, "coverAnimate", "artlyrics.option.cover_animate", y, config.coverAnimate, v -> config.coverAnimate = v);
 		}
 		return y;
@@ -869,6 +884,250 @@ public final class SettingsUi {
 		}
 		return String.format(Locale.ROOT, host.tr(daysAway < 0 ? "artlyrics.holidays.in_days" : "artlyrics.holidays.days_ago"),
 				Math.abs(daysAway));
+	}
+
+	// ---- Home ----
+
+	private static final Page[] HOME_TILES = {Page.LYRICS, Page.SKIES, Page.LOOK, Page.CARD, Page.HOLIDAYS, Page.MUSIC};
+
+	/** A welcome banner, shortcuts to the main pages, and what's playing. */
+	private int pageHome(Canvas c, int y) {
+		ArtlyricsConfig config = host.config();
+		Palette palette = config.palette();
+		double seconds = now / 1e9;
+		SkyTheme sky = config.sky;
+
+		// Banner: the chosen sky (or the palette's colors when there is none), darker behind the words.
+		int bh = 60;
+		if (sky == SkyTheme.NONE) {
+			int top = Palette.lerpRgb(palette.from(), 0x000000, 0.55f);
+			int bottom = Palette.lerpRgb(palette.to(), 0x000000, 0.3f);
+			c.gradientV(cx, y, cx + cw, y + bh, 0xFF000000 | top, 0xFF000000 | bottom);
+			drawStars(c, cx, y, cx + cw, y + bh - 8, 28, seconds);
+		} else {
+			drawSkyPreview(c, sky, cx, y, cx + cw, y + bh, seconds, 0.84f);
+		}
+		Draw.gradientH(c, cx, y, cx + cw * 2 / 3, y + bh, 0x99000000, 0x00000000);
+		int lx = cx + 12;
+		c.gradientV(lx, y + 16, lx + 28, y + 44, 0xFF000000 | palette.colorAt(0f, seconds), 0xFF000000 | palette.colorAt(1f, seconds));
+		c.push();
+		c.translate(lx + 4, y + 20);
+		c.scale(2f);
+		c.icon("note", 0, 0, 0xF0FFFFFF);
+		c.pop();
+		c.push();
+		c.translate(lx + 36, y + 17);
+		c.scale(1.6f);
+		c.text("Artlyrics", UI, 0, 0, 0xFFFFFFFF, true);
+		c.pop();
+		c.text(host.tr("artlyrics.home.tagline"), UI, lx + 37, y + 34, 0xE0FFFFFF, true);
+		y += bh + 8;
+
+		// Shortcuts.
+		int cols = cw >= 300 ? 3 : 2;
+		int gap = 6;
+		int tw = (cw - gap * (cols - 1)) / cols;
+		int th = 40;
+		for (int i = 0; i < HOME_TILES.length; i++) {
+			Page p = HOME_TILES[i];
+			int tx = cx + (i % cols) * (tw + gap);
+			int ty = y + (i / cols) * (th + gap);
+			float h = hover("home:" + p, insideContent(tx, ty, tx + tw, ty + th));
+			Draw.roundRect(c, tx, ty, tx + tw, ty + th, 6, Draw.lerpArgb(Theme.CARD, Theme.CARD_HOVER, h));
+			Draw.roundRect(c, tx + 6, ty + 6, tx + 20, ty + 20, 4, Draw.withAlpha(accent, 0.22f + 0.15f * h));
+			c.icon(p.icon, tx + 8, ty + 8, accent);
+			c.text(Draw.ellipsize(c, host.tr(p.key()), UI, tw - 30), UI, tx + 25, ty + 9, Theme.TEXT, false);
+			c.text(Draw.ellipsize(c, host.tr(p.key() + ".desc"), UI, tw - 12), UI, tx + 6, ty + 25, Theme.MUTED, false);
+			c.text("→", null, tx + tw - 12 + Math.round(2 * h), ty + 9, Draw.lerpArgb(Theme.FAINT, accent, h), false);
+			contentHit(tx, ty, tx + tw, ty + th, () -> setPage(p));
+		}
+		y += ((HOME_TILES.length + cols - 1) / cols) * (th + gap) + 2;
+
+		// Now playing.
+		y = section(c, "artlyrics.ui.section.now_playing", y);
+		NowPlaying track = host.track();
+		int sh = 40;
+		Draw.roundRect(c, cx, y, cx + cw, y + sh, 6, Theme.CARD);
+		int ax = cx + 6;
+		int ay = y + 6;
+		int art = 28;
+		c.gradientV(ax, ay, ax + art, ay + art, 0xFF000000 | palette.colorAt(0f, seconds), 0xFF000000 | palette.colorAt(1f, seconds));
+		c.icon("note", ax + 9, ay + 9, 0xE0FFFFFF);
+		CoverImage cover = config.cardCover ? host.cover() : null;
+		if (cover != null) {
+			c.cover(cover, config.coverAnimate ? now / 1_000_000L : 0L, ax, ay, art);
+		}
+		int tx = ax + art + 8;
+		int controlsW = config.mediaControls && track != null ? 3 * 24 + 2 * 4 + 6 : 0;
+		int textW = cx + cw - 8 - controlsW - tx;
+		if (track == null) {
+			c.text(Draw.ellipsize(c, host.tr("artlyrics.ui.nothing_playing"), UI, textW), UI, tx, ay + 4, Theme.MUTED, false);
+		} else {
+			c.text(Draw.ellipsize(c, track.title(), UI, textW), UI, tx, ay + 1, Theme.TEXT, false);
+			c.text(Draw.ellipsize(c, track.artist(), UI, textW), UI, tx, ay + 11, Theme.MUTED, false);
+			int barY = ay + 23;
+			Draw.roundRect(c, tx, barY, tx + textW, barY + 3, 1, Draw.withAlpha(Theme.HIGHLIGHT, 0.19f));
+			if (track.durationMs() > 0) {
+				int filled = tx + Math.round(textW * Math.min(1f, host.positionMs() / (float) track.durationMs()));
+				Draw.gradientH(c, tx, barY, Math.max(tx + 1, filled), barY + 3, 0xFF000000 | palette.from(), 0xFF000000 | palette.to());
+			}
+			if (controlsW > 0) {
+				int bx = cx + cw - 6 - (3 * 24 + 2 * 4);
+				int by = y + (sh - 18) / 2;
+				iconButton(c, "homePrev", bx, by, 24, 18, "prev", false, () -> host.sendMedia(MediaCommand.PREVIOUS));
+				iconButton(c, "homePlay", bx + 28, by, 24, 18, track.playing() ? "pause" : "play", true, () -> host.sendMedia(MediaCommand.PLAY_PAUSE));
+				iconButton(c, "homeNext", bx + 56, by, 24, 18, "next", false, () -> host.sendMedia(MediaCommand.NEXT));
+			}
+		}
+		contentHit(cx, y, cx + cw - controlsW, y + sh, () -> setPage(Page.NOW_PLAYING));
+		return y + sh + 6;
+	}
+
+	// ---- Skies ----
+
+	private static final java.util.Map<SkyTheme, CoverImage> SKY_PREVIEWS = new java.util.EnumMap<>(SkyTheme.class);
+
+	/** The sky's picture for previews, or null. */
+	static synchronized CoverImage skyPreview(SkyTheme sky) {
+		if (sky.texturePath() == null) {
+			return null;
+		}
+		return SKY_PREVIEWS.computeIfAbsent(sky, s -> {
+			try (java.io.InputStream in = SettingsUi.class.getResourceAsStream("/assets/artlyrics/" + s.texturePath())) {
+				return in == null ? null : com.artlyrics.cover.CoverDecoder.decode(in.readAllBytes(), "sky");
+			} catch (java.io.IOException e) {
+				return null;
+			}
+		});
+	}
+
+	private int pageSkies(Canvas c, int y) {
+		ArtlyricsConfig config = host.config();
+		double seconds = now / 1e9;
+		SkyTheme[] skies = SkyTheme.values();
+		int cols = cw >= 300 ? 3 : 2;
+		int gap = 6;
+		int tw = (cw - gap * (cols - 1)) / cols;
+		int th = 58;
+		for (int i = 0; i < skies.length; i++) {
+			SkyTheme sky = skies[i];
+			int tx = cx + (i % cols) * (tw + gap);
+			int ty = y + (i / cols) * (th + gap);
+			boolean selected = config.sky == sky;
+			float h = hover("sky:" + sky, insideContent(tx, ty, tx + tw, ty + th));
+			Draw.roundRect(c, tx, ty, tx + tw, ty + th, 5, Draw.lerpArgb(Theme.CARD, Theme.CARD_HOVER, h));
+			drawSkyPreview(c, sky, tx + 3, ty + 3, tx + tw - 3, ty + 43, seconds, 0.5f);
+			if (selected) {
+				Draw.roundOutline(c, tx, ty, tx + tw, ty + th, 5, accent);
+			}
+			String name = Draw.ellipsize(c, host.tr(sky.translationKey()), UI, tw - 8);
+			c.text(name, UI, tx + 5, ty + 46, selected ? accent : Theme.TEXT, false);
+			contentHit(tx, ty, tx + tw, ty + th, () -> {
+				config.sky = sky;
+				host.settingsChanged();
+			});
+		}
+		y += ((skies.length + cols - 1) / cols) * (th + gap) + 2;
+
+		y = section(c, "artlyrics.ui.section.sky_options", y);
+		y = rowToggle(c, "skyNight", "artlyrics.option.sky_night", y, config.skyNightOnly, v -> config.skyNightOnly = v);
+		y = rowSlider(c, "skyIntensity", "artlyrics.option.sky_intensity", y, config.skyIntensity, 0.2f, 1f,
+				Math.round(config.skyIntensity * 100) + "%", v -> config.skyIntensity = round(v, 0.05f));
+		y = rowSlider(c, "skySpeed", "artlyrics.option.sky_speed", y, config.skySpeed, 0f, 2f,
+				String.format(Locale.ROOT, "%.1f×", config.skySpeed), v -> config.skySpeed = round(v, 0.1f));
+		return rowToggle(c, "skyStars", "artlyrics.option.sky_stars", y, config.skyStars, v -> config.skyStars = v);
+	}
+
+	/** Twinkling dots scattered over an area. */
+	private static void drawStars(Canvas c, int x0, int y0, int x1, int y1, int count, double seconds) {
+		int w = Math.max(1, x1 - x0 - 4);
+		int h = Math.max(1, y1 - y0 - 4);
+		for (int i = 0; i < count; i++) {
+			long hash = (i + 1) * 0x9E3779B97F4A7C15L;
+			int sx = x0 + 2 + (int) Math.floorMod(hash >>> 17, (long) w);
+			int sy = y0 + 2 + (int) Math.floorMod((hash * 31) >>> 23, (long) h);
+			float tw = (float) (0.5 + 0.5 * Math.sin(seconds * (1.2 + (i % 4) * 0.5) + i * 2.3));
+			c.fill(sx, sy, sx + 1, sy + 1, Draw.withAlpha(0xFFFFFF, 0.25f + 0.65f * tw));
+		}
+	}
+
+	/** A small picture of a sky over dark hills; {@code focus} is where across it the sky's picture sits (0..1). */
+	private void drawSkyPreview(Canvas c, SkyTheme sky, int x0, int y0, int x1, int y1, double seconds, float focus) {
+		int w = x1 - x0;
+		int h = y1 - y0;
+		int fx = x0 + Math.round(w * focus);
+		if (sky == SkyTheme.NONE) {
+			c.gradientV(x0, y0, x1, y1, 0xFF6F9BE8, 0xFFBFD6F5);
+		} else {
+			c.gradientV(x0, y0, x1, y1, 0xFF000000 | sky.zenith, 0xFF000000 | sky.horizon);
+		}
+		if (sky.stars > 60) {
+			drawStars(c, x0, y0, x1, y0 + h * 2 / 3, Math.max(10, w / 6), seconds);
+		}
+		switch (sky) {
+			case AURORA -> {
+				// Two curtains of light that wave slowly; brightest in the middle of the picture.
+				for (int k = 0; k < 2; k++) {
+					int color = k == 0 ? 0x5CFFB0 : 0x9A7CFF;
+					for (int x = x0; x < x1; x += 2) {
+						float edge = (float) Math.sin(Math.PI * (x - x0) / (double) w);
+						int wy = y0 + Math.round(h * 0.22f + k * 6 + 3f * (float) Math.sin(x * 0.07 + seconds * 0.8 + k * 2.1));
+						int len = Math.round(h * 0.3f + 4f * (float) Math.sin(x * 0.045 + seconds * 0.5 + k));
+						float a = (k == 0 ? 0.65f : 0.4f) * edge * edge;
+						c.gradientV(x, wy, Math.min(x1, x + 2), wy + len, Draw.withAlpha(color, 0f), Draw.withAlpha(color, a));
+					}
+				}
+			}
+			case LIGHT_PILLARS -> {
+				for (int k = 0; k < 6; k++) {
+					int bx = x0 + 6 + k * (w - 12) / 6;
+					float pulse = (float) (0.5 + 0.5 * Math.sin(seconds * 0.8 + k * 1.7));
+					c.gradientV(bx, y0 + 4, bx + 1, y1 - 6, Draw.withAlpha(0xD8C8FF, 0f), Draw.withAlpha(0xD8C8FF, 0.4f + 0.5f * pulse));
+				}
+			}
+			case METEOR_SHOWER -> {
+				for (int k = 0; k < 3; k++) {
+					float p = (float) ((seconds * 0.5 + k / 3.0) % 1.0);
+					int mx = x0 + w / 5 + k * w / 4 + Math.round(p * 20);
+					int my = y0 + 6 + k * 5 + Math.round(p * 10);
+					for (int d = 0; d < 6; d++) {
+						c.fill(mx - d * 2, my - d, mx - d * 2 + 2, my - d + 1, Draw.withAlpha(0xFFFFFF, (1f - p) * (1f - d / 6f)));
+					}
+				}
+			}
+			case SAKURA_DUSK -> {
+				for (int k = 0; k < Math.max(10, w / 9); k++) {
+					float p = (float) ((seconds * 0.15 + k / 10.0) % 1.0);
+					long hash = (k + 7) * 0x9E3779B97F4A7C15L;
+					int px = x0 + 3 + (int) Math.floorMod(hash >>> 19, (long) Math.max(1, w - 6))
+							+ Math.round(3f * (float) Math.sin(seconds + k));
+					int py = y0 + Math.round(p * (h - 8));
+					c.fill(px, py, px + 2, py + 1, 0xFFFFC2DA);
+				}
+			}
+			case TWIN_MOONS -> {
+				CoverImage moon = skyPreview(sky);
+				if (moon != null) {
+					int big = h / 2;
+					int small = h / 4;
+					c.cover(moon, 0, fx - big + 2, y0 + 5, big);
+					c.cover(moon, 0, fx + 6, y0 + 3, small);
+				}
+			}
+			default -> {
+				CoverImage picture = skyPreview(sky);
+				if (picture != null) {
+					int size = sky == SkyTheme.SYNTH_SUNSET ? h - 6 : h - 4;
+					int py = sky == SkyTheme.SYNTH_SUNSET ? y1 - size - 2 : y0 + 2;
+					c.cover(picture, 0, fx - size / 2, py, size);
+				}
+			}
+		}
+		// Hills.
+		for (int x = x0; x < x1; x += 2) {
+			int hh = 4 + (int) Math.round(2.5 * Math.sin(x * 0.11) + 1.5 * Math.sin(x * 0.37 + 1));
+			c.fill(x, y1 - hh, Math.min(x1, x + 2), y1, 0xFF0A0A10);
+		}
 	}
 
 	private int pageMusic(Canvas c, int y) {

@@ -108,6 +108,18 @@ public final class ArtlyricsConfig {
 		}
 	}
 
+	/** How the song card looks. */
+	public enum CardStyle {
+		/** A slim bar: small cover, title and the lyric line. */
+		COMPACT,
+		/** A bigger player with a large cover, a record and moving bars. */
+		PLAYER;
+
+		public String translationKey() {
+			return "artlyrics.card_style." + name().toLowerCase(Locale.ROOT);
+		}
+	}
+
 	/** Where the song card sits. */
 	public enum CardCorner {
 		TOP_LEFT, TOP_CENTER, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT;
@@ -174,6 +186,11 @@ public final class ArtlyricsConfig {
 	public CardCorner cardCorner = CardCorner.TOP_LEFT;
 	public float cardScale = 1.0f;
 	public float cardOpacity = 0.75f;
+	public CardStyle cardStyle = CardStyle.COMPACT;
+	/** Player style: a record slides out from behind the cover and spins while the song plays. */
+	public boolean cardVinyl = true;
+	/** Player style: bars that dance along with the sung words. */
+	public boolean cardVisualizer = true;
 	public boolean cardArtist = true;
 	public boolean cardProgress = true;
 	public boolean cardNextLine = true;
@@ -224,6 +241,15 @@ public final class ArtlyricsConfig {
 
 	public MenuTheme menuTheme = MenuTheme.DARK;
 	public EffectColor effectColor = EffectColor.AUTO;
+
+	// --- Sky ------------------------------------------------------------------------------------------------
+	public com.artlyrics.sky.SkyTheme sky = com.artlyrics.sky.SkyTheme.NONE;
+	/** Show the sky only at night (it fades in at dusk). */
+	public boolean skyNightOnly = false;
+	public float skyIntensity = 0.9f;
+	/** How fast the sky moves (0 = still). */
+	public float skySpeed = 1.0f;
+	public boolean skyStars = true;
 
 	// --- Updates ------------------------------------------------------------------------------------------
 	public enum UpdateMode {
@@ -307,11 +333,15 @@ public final class ArtlyricsConfig {
 		if (style == null) style = d.style;
 		if (textEffect == null) textEffect = d.textEffect;
 		if (cardCorner == null) cardCorner = d.cardCorner;
+		if (cardStyle == null) cardStyle = d.cardStyle;
 		if (preferredPlayer == null) preferredPlayer = d.preferredPlayer;
 		if (spotifyClientId == null) spotifyClientId = "";
 		if (holidays == null) holidays = d.holidays;
 		if (updates == null) updates = d.updates;
 		if (menuTheme == null) menuTheme = d.menuTheme;
+		if (sky == null) sky = d.sky;
+		skyIntensity = clamp(skyIntensity, 0.2f, 1f, d.skyIntensity);
+		skySpeed = clamp(skySpeed, 0f, 2f, d.skySpeed);
 		if (effectColor == null) effectColor = d.effectColor;
 		if (updateRepository == null || !updateRepository.matches("[\\w.-]+/[\\w.-]+")) updateRepository = d.updateRepository;
 		if (updateBranches == null || updateBranches.isEmpty()) updateBranches = d.updateBranches;

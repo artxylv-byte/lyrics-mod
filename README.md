@@ -26,7 +26,10 @@ lyrics drawn in the world around you.
 - **Menu themes**: Dark, Light, Midnight, Glass (see-through), Ocean, Forest and Sakura, for the settings and the
   song card.
 - **Song card**: a small card with the song's cover picture, title, artist, progress and the current line, in the
-  corner you pick, at the size and opacity you like. Animated covers (GIF) play on the card.
+  corner you pick, at the size and opacity you like. Animated covers (GIF) play on the card. The **Player** style
+  makes it bigger, with a record that slides out from behind the cover and spins, and bars that bounce along with
+  the sung words.
+- **Skies**: eleven animated skies drawn above your world (see below), only at night if you like.
 - **Demo song**: a short built-in song so you can try every look without playing music.
 
 ## Where lyrics come from
@@ -128,6 +131,28 @@ South Korea, Japan, China, Taiwan, India and Australia. Movable dates are worked
 calendar's Seollal, Chuseok, Buddha's Birthday, the Spring, Lantern, Dragon Boat and Mid-Autumn Festivals, Diwali
 and Holi.
 
+## Skies
+
+The Skies page changes what the sky looks like, with a moving preview of each:
+
+| Sky | What's in it |
+| --- | --- |
+| Minecraft | the normal sky |
+| Ringed Planet | a big planet with rings and a small moon among the stars |
+| Spiral Galaxy | a turning galaxy and a faint glow of dust |
+| Aurora | green and violet curtains of light that wave across the north |
+| Eclipse | a dark sun in a glowing corona |
+| Light Pillars | soft beams of light rising from the horizon all around |
+| Meteor Shower | shooting stars every few seconds |
+| Nebula | a colorful cloud of gas glowing among the stars |
+| Twin Moons | two moons, a big one and a small one |
+| Sakura Dusk | a pink evening sky with petals drifting down |
+| Synth Sunset | a striped neon sun sinking into a purple sky |
+
+**Only at night** fades the sky in at dusk and away at dawn. **Strength** sets how much it covers the normal sky,
+**Movement** how fast things move (0 keeps them still) and **Stars** turns the stars on or off. Skies show in the
+Overworld only and fade in rain. All the sky pictures were drawn for Artlyrics.
+
 ## Cover pictures
 
 The song card shows the song's cover, taken from (in this order):
@@ -162,12 +187,14 @@ screen, so turn on **Demo song** and watch while you adjust.
 
 | Page | What's there |
 | --- | --- |
+| Home | A welcome banner with your sky, shortcuts to the main pages, and what's playing (with media controls when they're on) |
 | Now Playing | The current song and cover, whether lyrics were found, the line being sung, media controls, quick settings, detection status |
 | Lyrics | Mode, animation, animation speed, exit style, how long lines linger, sync offset, this song's timing, whole line at once, next-line preview and its visibility |
 | Holidays | Holiday themes (seasons / always nearest / off), region, holiday colors, decorations, try a theme, what's on now and coming up |
+| Skies | Animated skies with live previews, only at night, strength, movement, stars |
 | Look | Menu theme, looks, fonts, palettes (with a custom color editor), text effect, glow, size, opacity, line width, bold, italic, ALL CAPS |
 | Placement | Skywriting height, distance, scatter, drift and arc; hover distance, height and how quickly it follows your view |
-| Song Card | Show or hide, position, size, background, artist, progress, next-line preview, album cover, big cover, animated covers, find covers online, covers folder, with a live preview |
+| Song Card | Show or hide, style (Compact or Player, with the record and moving bars), position, size, background, artist, progress, next-line preview, album cover, big cover, animated covers, find covers online, covers folder, with a live preview |
 | Music | Preferred player, media controls, Spotify account, updates |
 | Sources | Look lyrics up again, lyrics sources (your folder, LRCLIB, NetEase, lyrics without timing), covers online, covers folder |
 
@@ -210,7 +237,8 @@ src/main/java/com/artlyrics/
   ArtlyricsClient.java     entrypoint: events, keybinds
   nowplaying/              detecting the playing song (Windows / macOS / Linux / demo) and a smoothed clock
   lyrics/                  LRCLIB client, LRC and word-synced parsers, timing estimation, lookup cache
-  render/                  Skywriting / Hover renderer, fonts, song card HUD
+  render/                  Skywriting / Hover renderer, skies, fonts, song card HUD
+  sky/                     the sky themes
   ui/                      settings screen and song card, drawn through the Canvas interface
   screen/                  Minecraft screen that hosts the settings UI
   config/                  settings, palettes and looks

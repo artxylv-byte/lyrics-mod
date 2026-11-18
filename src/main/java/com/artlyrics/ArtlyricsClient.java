@@ -12,6 +12,7 @@ import com.artlyrics.lyrics.NeteaseClient;
 import com.artlyrics.nowplaying.MediaSource;
 import com.artlyrics.nowplaying.MediaSources;
 import com.artlyrics.nowplaying.PlaybackTracker;
+import com.artlyrics.render.SkyArtRenderer;
 import com.artlyrics.render.SkyLyricsRenderer;
 import com.artlyrics.render.SongCardHud;
 import com.artlyrics.screen.ArtlyricsScreen;
@@ -81,7 +82,11 @@ public final class ArtlyricsClient implements ClientModInitializer {
 		}
 
 		SkyLyricsRenderer renderer = new SkyLyricsRenderer();
-		Mc.onWorldRender(renderer::render);
+		SkyArtRenderer sky = new SkyArtRenderer();
+		Mc.onWorldRender((pose, buffers) -> {
+			sky.render(pose, buffers); // behind the lyrics
+			renderer.render(pose, buffers);
+		});
 		Mc.addHudElementBeforeChat("song_card", new SongCardHud());
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> renderer.reset());
 

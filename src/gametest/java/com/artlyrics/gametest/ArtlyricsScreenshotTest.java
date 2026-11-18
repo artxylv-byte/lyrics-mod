@@ -88,6 +88,39 @@ public class ArtlyricsScreenshotTest implements FabricClientGameTest {
 			context.waitTicks(7);
 			context.takeScreenshot("08d-big-animated-cover-later-frame");
 			context.runOnClient(client -> Artlyrics.get().config().cardBigCover = false);
+			// The player card with its record and bars, under a nebula sky.
+			shot(context, "08i-player-card-nebula", 13_200, -26f, c -> {
+				c.apply(Look.STARLIGHT);
+				c.cardStyle = ArtlyricsConfig.CardStyle.PLAYER;
+				c.sky = com.artlyrics.sky.SkyTheme.NEBULA;
+			});
+			// Playing: the record slides out and the bars move.
+			context.runOnClient(client -> Artlyrics.get().tracker().seekDemo(13_200, false));
+			context.waitTicks(30);
+			context.takeScreenshot("08i-player-card-playing");
+			shot(context, "08j-player-card-bottom-right", 4_200, -14f, c -> {
+				c.apply(Look.PETAL);
+				c.cardStyle = ArtlyricsConfig.CardStyle.PLAYER;
+				c.cardCorner = ArtlyricsConfig.CardCorner.BOTTOM_RIGHT;
+			});
+
+			// Animated skies, looking up a little towards each sky's main object.
+			String[][] skies = {{"RINGED_PLANET", "160"}, {"SPIRAL_GALAXY", "200"}, {"AURORA", "195"}, {"SYNTH_SUNSET", "180"},
+					{"SAKURA_DUSK", "250"}, {"LIGHT_PILLARS", "0"}};
+			for (String[] skyShot : skies) {
+				com.artlyrics.sky.SkyTheme theme = com.artlyrics.sky.SkyTheme.valueOf(skyShot[0]);
+				float yaw = Float.parseFloat(skyShot[1]);
+				shot(context, "07s-sky-" + skyShot[0].toLowerCase(java.util.Locale.ROOT), 4_200, -26f, c -> {
+					c.apply(Look.STARLIGHT);
+					c.sky = theme;
+				});
+				context.runOnClient(client -> {
+					client.player.setYRot(yaw);
+					client.player.yRotO = yaw;
+				});
+				context.waitTicks(3);
+				context.takeScreenshot("07s-sky-" + skyShot[0].toLowerCase(java.util.Locale.ROOT) + "-facing");
+			}
 
 			// Holiday themes: Latvia's flag day, Christmas in hover mode, Seollal with lanterns.
 			shot(context, "08e-holiday-latvia-flag-day", 4_200, -14f, c -> {
@@ -191,6 +224,8 @@ public class ArtlyricsScreenshotTest implements FabricClientGameTest {
 			c.holidays = com.artlyrics.holiday.HolidayFinder.Mode.OFF;
 			c.holidayPreview = "";
 			c.holidayRegion = "auto";
+			c.sky = com.artlyrics.sky.SkyTheme.NONE;
+			c.cardStyle = defaults.cardStyle;
 			setup.accept(c);
 			mod.settingsChanged();
 
