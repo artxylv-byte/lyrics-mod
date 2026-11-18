@@ -34,6 +34,7 @@ final class WindowsMediaSource implements MediaSource {
 	private volatile boolean running;
 	private volatile String preferred = "spotify";
 	private volatile @Nullable Process process;
+	private volatile @Nullable java.io.Writer commands;
 	private volatile @Nullable NowPlaying current;
 	private volatile @Nullable String problem;
 	private Thread thread;
@@ -97,8 +98,8 @@ final class WindowsMediaSource implements MediaSource {
 				.redirectErrorStream(true)
 				.start();
 		process = p;
+		commands = new java.io.OutputStreamWriter(p.getOutputStream(), StandardCharsets.UTF_8);
 		try (BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream(), StandardCharsets.UTF_8))) {
-			p.getOutputStream().close();
 			String line;
 			while (running && (line = reader.readLine()) != null) {
 				handleLine(line.strip());
@@ -107,6 +108,7 @@ final class WindowsMediaSource implements MediaSource {
 				}
 			}
 		} finally {
+			commands = null;
 			p.destroy();
 			process = null;
 		}
@@ -156,6 +158,28 @@ final class WindowsMediaSource implements MediaSource {
 					Math.max(0, num(o, "endMs")), pos, playing, now, coverUrl(str(o, "cover")));
 		} catch (JsonParseException | IllegalStateException | UnsupportedOperationException e) {
 			// ignore malformed lines
+		}
+	}
+
+	@Override
+	public boolean send(MediaCommand command) {
+		java.io.Writer w = commands;
+		if (w == null) {
+			return false;
+		}
+		String line = switch (command) {
+			case PLAY_PAUSE -> "toggle";
+			case NEXT -> "next";
+			case PREVIOUS -> "previous";
+		};
+		try {
+			synchronized (this) {
+				w.write(line + "\n");
+				w.flush();
+			}
+			return true;
+		} catch (IOException e) {
+			return false;
 		}
 	}
 

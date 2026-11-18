@@ -99,6 +99,11 @@ public final class PlaybackTracker {
 		track = sample;
 	}
 
+	/** Sends a playback command to the player being followed (or the demo song). */
+	public boolean send(MediaCommand command) {
+		return demoActive ? demo.send(command) : system.send(command);
+	}
+
 	/** The track being followed, or null if nothing is playing. */
 	public @Nullable NowPlaying track() {
 		return track;

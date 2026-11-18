@@ -1,5 +1,11 @@
 package com.artlyrics.ui;
 
+import com.artlyrics.cover.CoverImage;
+import com.artlyrics.holiday.HolidayFinder;
+import com.artlyrics.holiday.Region;
+import com.artlyrics.nowplaying.MediaCommand;
+import com.artlyrics.spotify.SpotifyAccount;
+import com.artlyrics.update.Updater;
 import com.artlyrics.config.ArtlyricsConfig;
 import com.artlyrics.lyrics.Lyrics;
 import com.artlyrics.lyrics.LyricsManager;
@@ -32,12 +38,12 @@ public interface UiHost {
 	String lyricsDetail();
 
 	/** The current song's cover picture, or null. */
-	default @Nullable com.artlyrics.cover.CoverImage cover() {
+	default @Nullable CoverImage cover() {
 		return null;
 	}
 
 	/** Checks for and installs new versions, or null where that isn't possible. */
-	default @Nullable com.artlyrics.update.Updater updater() {
+	default @Nullable Updater updater() {
 		return null;
 	}
 
@@ -45,14 +51,33 @@ public interface UiHost {
 	default void quitGame() {
 	}
 
+	/** Sends play / pause or skip to the music player. */
+	default boolean sendMedia(MediaCommand command) {
+		return false;
+	}
+
+	/** The player's Spotify account (for liking and playlists), or null where that isn't available. */
+	default @Nullable SpotifyAccount spotify() {
+		return null;
+	}
+
+	/** Text on the clipboard, or "". */
+	default String clipboard() {
+		return "";
+	}
+
+	/** Opens a web page in the browser. */
+	default void openUrl(String url) {
+	}
+
 	/** The holiday theme shown now, or null. */
-	default @Nullable com.artlyrics.holiday.HolidayFinder.Active holiday() {
+	default @Nullable HolidayFinder.Active holiday() {
 		return config().activeHoliday;
 	}
 
 	/** The region whose holidays are used, or null if it isn't known. */
-	default @Nullable com.artlyrics.holiday.Region holidayRegion() {
-		return com.artlyrics.holiday.Region.forCode(config().holidayRegion);
+	default @Nullable Region holidayRegion() {
+		return Region.forCode(config().holidayRegion);
 	}
 
 	/** Name of the region found automatically (for "Auto (Latvia)"), or "" if unknown. */

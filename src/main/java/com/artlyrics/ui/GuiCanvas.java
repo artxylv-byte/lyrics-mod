@@ -1,5 +1,7 @@
 package com.artlyrics.ui;
 
+import com.artlyrics.cover.CoverImage;
+import net.minecraft.client.Minecraft;
 import com.artlyrics.compat.Mc;
 import com.artlyrics.config.ArtlyricsConfig.TextFont;
 import com.artlyrics.render.Fonts;
@@ -99,12 +101,12 @@ public final class GuiCanvas implements Canvas {
 	}
 
 	@Override
-	public boolean cover(com.artlyrics.cover.CoverImage image, long elapsedMs, int x, int y, int size) {
+	public boolean cover(CoverImage image, long elapsedMs, int x, int y, int size) {
 		int argb = mul(0xFFFFFFFF);
 		if ((argb >>> 24) < 4) {
 			return true;
 		}
-		int pixels = Math.round(size * scale * net.minecraft.client.Minecraft.getInstance().getWindow().getGuiScale());
+		int pixels = Math.round(size * scale * Minecraft.getInstance().getWindow().getGuiScale());
 		return com.artlyrics.render.CoverTextures.INSTANCE.draw(graphics, image, elapsedMs, x, y, size, pixels, argb);
 	}
 

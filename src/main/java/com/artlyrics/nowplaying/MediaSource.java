@@ -17,6 +17,14 @@ public interface MediaSource extends AutoCloseable {
 	default void setPreferredPlayer(String preferred) {
 	}
 
+	/**
+	 * Asks the player to play / pause or skip. Returns false if this source can't control players. The new state
+	 * shows up with the next update of {@link #current()}.
+	 */
+	default boolean send(MediaCommand command) {
+		return false;
+	}
+
 	@Override
 	void close();
 }

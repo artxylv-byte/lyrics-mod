@@ -24,6 +24,8 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.api.metadata.ModOrigin;
 import com.artlyrics.update.Updater;
+import com.artlyrics.nowplaying.MediaCommand;
+import com.artlyrics.spotify.SpotifyAccount;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -42,6 +44,10 @@ public final class ArtlyricsClient implements ClientModInitializer {
 	private static KeyMapping toggleMode;
 	private static KeyMapping earlier;
 	private static KeyMapping later;
+	private static KeyMapping playPause;
+	private static KeyMapping nextSong;
+	private static KeyMapping previousSong;
+	private static KeyMapping likeSong;
 	/** How much one press of the "earlier / later" keys moves this song's lyrics. */
 	private static final int NUDGE_MS = 250;
 
@@ -84,10 +90,19 @@ public final class ArtlyricsClient implements ClientModInitializer {
 		toggleMode = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.artlyrics.mode", InputConstants.UNKNOWN.getValue(), CATEGORY));
 		earlier = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.artlyrics.earlier", GLFW.GLFW_KEY_LEFT_BRACKET, CATEGORY));
 		later = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.artlyrics.later", GLFW.GLFW_KEY_RIGHT_BRACKET, CATEGORY));
+		playPause = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.artlyrics.play_pause", InputConstants.UNKNOWN.getValue(), CATEGORY));
+		nextSong = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.artlyrics.next", InputConstants.UNKNOWN.getValue(), CATEGORY));
+		previousSong = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.artlyrics.previous", InputConstants.UNKNOWN.getValue(), CATEGORY));
+		likeSong = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.artlyrics.like", InputConstants.UNKNOWN.getValue(), CATEGORY));
 
 		Updater updater = new Updater(version, installedJar(), config.updateRepository, config.updateBranches, userAgent);
 		updater.resumePending();
 		mod.setUpdater(updater);
+		SpotifyAccount spotify = new SpotifyAccount(dataDir.resolve("spotify.json"), Mc::openUrl);
+		if (!config.spotifyClientId.isBlank()) {
+			spotify.setClientId(config.spotifyClientId);
+		}
+		mod.setSpotify(spotify);
 
 		ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
 			tracker.start();
@@ -109,10 +124,21 @@ public final class ArtlyricsClient implements ClientModInitializer {
 			covers.update(tracker.track(), now);
 			mod.updateHoliday();
 			tellAboutUpdate(client, mod);
+			mod.songTick();
 			handleKeys(client, mod);
 		});
 
 		LOGGER.info("[Artlyrics] Ready ({}).", version);
+	}
+
+	private static void mediaKey(Minecraft client, Artlyrics mod, KeyMapping key, MediaCommand command, String toast) {
+		while (key.consumeClick()) {
+			if (!mod.config().mediaControls) {
+				client.gui.setOverlayMessage(Component.translatable("artlyrics.toast.controls_off"), false);
+			} else if (mod.tracker().send(command)) {
+				client.gui.setOverlayMessage(Component.translatable(toast), false);
+			}
+		}
 	}
 
 	private static Updater.State toldState;
@@ -164,6 +190,19 @@ public final class ArtlyricsClient implements ClientModInitializer {
 			mod.settingsChanged();
 			config.save();
 			client.gui.setOverlayMessage(Component.translatable(config.displayMode.translationKey()), false);
+		}
+		mediaKey(client, mod, playPause, MediaCommand.PLAY_PAUSE, "artlyrics.toast.play_pause");
+		mediaKey(client, mod, nextSong, MediaCommand.NEXT, "artlyrics.toast.next");
+		mediaKey(client, mod, previousSong, MediaCommand.PREVIOUS, "artlyrics.toast.previous");
+		while (likeSong.consumeClick()) {
+			SpotifyAccount spotify = mod.spotify();
+			if (!mod.config().mediaControls) {
+				client.gui.setOverlayMessage(Component.translatable("artlyrics.toast.controls_off"), false);
+			} else if (spotify == null || !spotify.connected()) {
+				client.gui.setOverlayMessage(Component.translatable("artlyrics.toast.connect_spotify"), false);
+			} else {
+				spotify.toggleLike();
+			}
 		}
 		int nudge = 0;
 		while (earlier.consumeClick()) {

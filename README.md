@@ -74,6 +74,23 @@ The only network requests the mod makes go to the lyrics sites (`lrclib.net` and
 `itunes.apple.com` and the picture address the player names. They contain the track's title, artist, album and
 length. Each can be switched off in the settings.
 
+## Media controls
+
+Turn on **Media controls** (Music page, or Quick settings on Now Playing) to get previous, play / pause and next
+buttons on the Now Playing page, plus keys for them (unbound by default, under Controls → Artlyrics). They work with
+Spotify, browsers and other players through the system's media controls (Windows media controls, MPRIS with
+`playerctl` on Linux, Spotify and Apple Music on macOS), no login needed.
+
+**Like** and **Add to playlist** need your Spotify account, once:
+
+1. On [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard) (the **Open** button), create an
+   app. Any name works. Set its Redirect URI to `http://127.0.0.1:43821/callback` and tick "Web API".
+2. Copy the app's **Client ID**, then press **Paste** next to "Spotify Client ID" on the Music page.
+3. Press **Connect** and log in to Spotify in the browser that opens.
+
+Artlyrics never sees your password. It keeps a login token in `config/artlyrics/spotify.json` that lets it save
+songs and change your playlists; **Disconnect** deletes it.
+
 ## Updates
 
 Artlyrics keeps itself up to date from this repository: when a newer `Artlyrics-<version>-mc<minecraft>.jar` for
@@ -145,13 +162,14 @@ screen, so turn on **Demo song** and watch while you adjust.
 
 | Page | What's there |
 | --- | --- |
-| Now Playing | The current song, whether lyrics were found, the line being sung, quick settings |
+| Now Playing | The current song and cover, whether lyrics were found, the line being sung, media controls, quick settings, detection status |
 | Lyrics | Mode, animation, animation speed, exit style, how long lines linger, sync offset, this song's timing, whole line at once, next-line preview and its visibility |
 | Holidays | Holiday themes (seasons / always nearest / off), region, holiday colors, decorations, try a theme, what's on now and coming up |
 | Look | Menu theme, looks, fonts, palettes (with a custom color editor), text effect, glow, size, opacity, line width, bold, italic, ALL CAPS |
 | Placement | Skywriting height, distance, scatter, drift and arc; hover distance, height and how quickly it follows your view |
 | Song Card | Show or hide, position, size, background, artist, progress, next-line preview, album cover, big cover, animated covers, find covers online, covers folder, with a live preview |
-| Music | Preferred player, demo song, look lyrics up again, lyrics sources (your folder, LRCLIB, NetEase, lyrics without timing), detection status |
+| Music | Preferred player, media controls, Spotify account, updates |
+| Sources | Look lyrics up again, lyrics sources (your folder, LRCLIB, NetEase, lyrics without timing), covers online, covers folder |
 
 Settings are saved in `config/artlyrics.json`, per-song timing in `config/artlyrics/song-timing.json`.
 

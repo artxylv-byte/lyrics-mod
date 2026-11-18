@@ -1,11 +1,17 @@
 package com.artlyrics.ui;
 
+import com.artlyrics.cover.CoverImage;
+import com.artlyrics.holiday.Holiday;
+import com.artlyrics.update.Updater;
+import java.time.LocalDate;
 import com.artlyrics.config.ArtlyricsConfig;
 import com.artlyrics.config.ArtlyricsConfig.TextFont;
 import com.artlyrics.config.Look;
 import com.artlyrics.config.LyricStyle;
 import com.artlyrics.config.Palette;
 import com.artlyrics.holiday.HolidayFinder;
+import com.artlyrics.nowplaying.MediaCommand;
+import com.artlyrics.spotify.SpotifyAccount;
 import com.artlyrics.holiday.HolidayTheme;
 import com.artlyrics.holiday.Region;
 import com.artlyrics.lyrics.LrcParser;
@@ -30,7 +36,8 @@ import java.util.function.IntConsumer;
  */
 public final class SettingsUi {
 	public enum Page {
-		NOW_PLAYING("note"), LYRICS("lyrics"), LOOK("palette"), HOLIDAYS("star"), PLACEMENT("compass"), CARD("card"), MUSIC("headphones");
+		NOW_PLAYING("note"), LYRICS("lyrics"), LOOK("palette"), HOLIDAYS("star"), PLACEMENT("compass"), CARD("card"),
+		MUSIC("headphones"), SOURCES("search");
 
 		final String icon;
 
@@ -174,6 +181,7 @@ public final class SettingsUi {
 			case CARD -> pageCard(c, start);
 			case MUSIC -> pageMusic(c, start);
 			case HOLIDAYS -> pageHolidays(c, start);
+			case SOURCES -> pageSources(c, start);
 		};
 		c.unclip();
 		c.setAlpha(baseAlpha * open);
@@ -226,9 +234,9 @@ public final class SettingsUi {
 			int plus = version.indexOf('+');
 			String shown = "v" + (plus > 0 ? version.substring(0, plus) : version);
 			c.text(shown, null, px + 12, py + ph - 14, Theme.FAINT, false);
-			com.artlyrics.update.Updater updater = host.updater();
+			Updater updater = host.updater();
 			if (updater != null && updater.latest() != null
-					&& (updater.state() == com.artlyrics.update.Updater.State.AVAILABLE || updater.state() == com.artlyrics.update.Updater.State.READY)) {
+					&& (updater.state() == Updater.State.AVAILABLE || updater.state() == Updater.State.READY)) {
 				c.text(" → " + updater.latest().version(), null, px + 12 + c.textWidth(shown, null), py + ph - 14, accent, false);
 			}
 		}
@@ -300,6 +308,10 @@ public final class SettingsUi {
 		c.scale(2f);
 		c.icon("note", 0, 0, 0xE0FFFFFF);
 		c.pop();
+		CoverImage cover = config.cardCover ? host.cover() : null;
+		if (cover != null) {
+			c.cover(cover, config.coverAnimate ? now / 1_000_000L : 0L, ax, ay, art);
+		}
 
 		int tx = ax + art + 10;
 		int tw = cx + cw - 10 - tx;
@@ -341,14 +353,18 @@ public final class SettingsUi {
 			}
 		}
 		y += cardH + 8;
+		if (config.mediaControls && track != null) {
+			y = mediaBar(c, track, y);
+		}
 
 		y = section(c, "artlyrics.ui.section.quick", y);
 		y = rowToggle(c, "demo", "artlyrics.option.demo", y, host.demoActive(), host::setDemoActive);
-		y = rowButton(c, "refresh", "artlyrics.option.refresh", "artlyrics.ui.search", y, host::refreshLyrics);
 		y = rowSelector(c, "mode", "artlyrics.option.mode", y, config.displayMode.ordinal(),
 				labels(ArtlyricsConfig.DisplayMode.values(), m -> m.translationKey()), i -> config.displayMode = ArtlyricsConfig.DisplayMode.values()[i]);
-		c.text(Draw.ellipsize(c, host.tr("artlyrics.ui.keybind_hint"), UI, cw), UI, cx + 8, y + 4, Theme.FAINT, false);
-		return y + 16;
+		y = rowToggle(c, "mediaControlsQuick", "artlyrics.option.media_controls", y, config.mediaControls, v -> config.mediaControls = v);
+		y = statusSection(c, y);
+		c.text(Draw.ellipsize(c, host.tr("artlyrics.ui.keybind_hint"), UI, cw), UI, cx + 8, y, Theme.FAINT, false);
+		return y + 14;
 	}
 
 	private void drawStatusBadge(Canvas c, int x, int y) {
@@ -694,11 +710,6 @@ public final class SettingsUi {
 		if (config.cardCover) {
 			y = rowToggle(c, "bigCover", "artlyrics.option.big_cover", y, config.cardBigCover, v -> config.cardBigCover = v);
 			y = rowToggle(c, "coverAnimate", "artlyrics.option.cover_animate", y, config.coverAnimate, v -> config.coverAnimate = v);
-			y = rowToggle(c, "coverOnline", "artlyrics.option.cover_online", y, config.coverOnline, v -> {
-				config.coverOnline = v;
-				host.refreshLyrics();
-			});
-			y = rowButton(c, "coversFolder", "artlyrics.option.covers_folder", "artlyrics.ui.open", y, host::openCoversFolder);
 		}
 		return y;
 	}
@@ -748,11 +759,11 @@ public final class SettingsUi {
 		y += 15;
 		Region region = host.holidayRegion();
 		if (region != null) {
-			java.time.LocalDate today = java.time.LocalDate.now();
+			LocalDate today = LocalDate.now();
 			List<String[]> upcoming = new ArrayList<>();
-			List<java.time.LocalDate> dates = new ArrayList<>();
-			for (com.artlyrics.holiday.Holiday h : region.holidays()) {
-				java.time.LocalDate d = h.dateIn(today.getYear());
+			List<LocalDate> dates = new ArrayList<>();
+			for (Holiday h : region.holidays()) {
+				LocalDate d = h.dateIn(today.getYear());
 				if (d.isBefore(today)) {
 					d = h.dateIn(today.getYear() + 1);
 				}
@@ -782,7 +793,7 @@ public final class SettingsUi {
 		ArtlyricsConfig.UpdateMode[] modes = ArtlyricsConfig.UpdateMode.values();
 		y = rowSelector(c, "updates", "artlyrics.option.updates", y, config.updates.ordinal(),
 				labels(modes, ArtlyricsConfig.UpdateMode::translationKey), i -> config.updates = modes[i]);
-		com.artlyrics.update.Updater u = host.updater();
+		Updater u = host.updater();
 		if (u == null) {
 			return y;
 		}
@@ -882,10 +893,51 @@ public final class SettingsUi {
 				config.preferredPlayer = PLAYERS[real][1];
 			}
 		});
-		y = rowToggle(c, "demo", "artlyrics.option.demo", y, host.demoActive(), host::setDemoActive);
-		y = rowButton(c, "refresh", "artlyrics.option.refresh", "artlyrics.ui.search", y, host::refreshLyrics);
 
-		// Where lyrics come from. Changing a source searches again right away.
+		// Playback controls, and the Spotify account for liking and playlists.
+		y = section(c, "artlyrics.ui.section.controls", y + 2);
+		y = rowToggle(c, "mediaControls", "artlyrics.option.media_controls", y, config.mediaControls, v -> config.mediaControls = v);
+		SpotifyAccount spotify = host.spotify();
+		if (config.mediaControls && spotify != null) {
+			String id = config.spotifyClientId.isBlank() ? host.tr("artlyrics.spotify.no_id")
+					: config.spotifyClientId.substring(0, Math.min(8, config.spotifyClientId.length())) + "…";
+			y = rowValueButton(c, "spotifyId", "artlyrics.option.spotify_id", y, id, "artlyrics.ui.paste", () -> {
+				String pasted = host.clipboard().strip();
+				if (!pasted.isEmpty()) {
+					config.spotifyClientId = pasted;
+					spotify.setClientId(pasted);
+					host.settingsChanged();
+				}
+			});
+			if (spotify.connected()) {
+				y = rowInfoButton(c, "spotifyAccount", y, host.tr("artlyrics.option.spotify_account"),
+						host.tr("artlyrics.spotify.connected_as") + " " + spotify.userName(), host.tr("artlyrics.ui.disconnect"),
+						spotify::disconnect);
+			} else {
+				y = rowInfoButton(c, "spotifyAccount", y, host.tr("artlyrics.option.spotify_account"),
+						host.tr("artlyrics.spotify.not_connected"), host.tr("artlyrics.ui.connect"), () -> {
+							spotify.setClientId(config.spotifyClientId);
+							spotify.connect();
+						});
+				y = rowButton(c, "spotifyHelp", "artlyrics.option.spotify_help", "artlyrics.ui.open_dashboard", y,
+						() -> host.openUrl(SpotifyAccount.DASHBOARD));
+				c.text(Draw.ellipsize(c, host.tr("artlyrics.spotify.redirect") + " " + SpotifyAccount.REDIRECT, UI, cw - 16), UI,
+						cx + 8, y + 2, Theme.FAINT, false);
+				y += 13;
+			}
+			if (!spotify.message().isBlank()) {
+				c.text(Draw.ellipsize(c, spotify.message(), UI, cw - 16), UI, cx + 8, y + 2, Theme.MUTED, false);
+				y += 13;
+			}
+		}
+
+		return updatesSection(c, config, y);
+	}
+
+	/** Where lyrics and covers come from. Changing a source searches again right away. */
+	private int pageSources(Canvas c, int y) {
+		ArtlyricsConfig config = host.config();
+		y = rowButton(c, "refresh", "artlyrics.option.refresh", "artlyrics.ui.search", y, host::refreshLyrics);
 		y = section(c, "artlyrics.ui.section.sources", y + 2);
 		y = rowToggle(c, "srcFolder", "artlyrics.option.source_folder", y, config.sourceFolder, v -> {
 			config.sourceFolder = v;
@@ -904,9 +956,16 @@ public final class SettingsUi {
 			config.estimateUnsynced = v;
 			host.refreshLyrics();
 		});
+		y = section(c, "artlyrics.ui.section.covers", y + 2);
+		y = rowToggle(c, "coverOnline", "artlyrics.option.cover_online", y, config.coverOnline, v -> {
+			config.coverOnline = v;
+			host.refreshLyrics();
+		});
+		return rowButton(c, "coversFolder", "artlyrics.option.covers_folder", "artlyrics.ui.open", y, host::openCoversFolder);
+	}
 
-		y = updatesSection(c, config, y);
-
+	/** What's being followed and where the lyrics came from. */
+	private int statusSection(Canvas c, int y) {
 		y = section(c, "artlyrics.ui.section.status", y + 2);
 		NowPlaying track = host.track();
 		String problem = host.problem();
@@ -923,9 +982,75 @@ public final class SettingsUi {
 		String sourceLine = detail == null || detail.isBlank() ? host.tr("artlyrics.ui.lyrics_source")
 				: host.tr("artlyrics.ui.lyrics_from") + " " + detail;
 		c.text(Draw.ellipsize(c, sourceLine, UI, cw - 16), UI, cx + 8, y + 2, Theme.FAINT, false);
-		y += 13;
-		c.text(Draw.ellipsize(c, host.tr("artlyrics.ui.keybind_hint"), UI, cw - 16), UI, cx + 8, y + 2, Theme.FAINT, false);
-		return y + 14;
+		return y + 16;
+	}
+
+	/** Previous, play / pause, next, and with Spotify connected: like and add to playlist. */
+	private int mediaBar(Canvas c, NowPlaying track, int y) {
+		SpotifyAccount spotify = host.spotify();
+		boolean spotifyOn = spotify != null && spotify.connected();
+		if (spotifyOn) {
+			spotify.checkSong();
+		}
+		int bw = 30;
+		int bh = 20;
+		int gap = 6;
+		int count = spotifyOn ? 5 : 3;
+		int x = cx + (cw - (count * bw + (count - 1) * gap)) / 2;
+		iconButton(c, "prev", x, y, bw, bh, "prev", false, () -> host.sendMedia(MediaCommand.PREVIOUS));
+		x += bw + gap;
+		iconButton(c, "playpause", x, y, bw, bh, track.playing() ? "pause" : "play", true, () -> host.sendMedia(MediaCommand.PLAY_PAUSE));
+		x += bw + gap;
+		iconButton(c, "next", x, y, bw, bh, "next", false, () -> host.sendMedia(MediaCommand.NEXT));
+		if (spotifyOn) {
+			x += bw + gap;
+			boolean liked = Boolean.TRUE.equals(spotify.liked());
+			iconButton(c, "like", x, y, bw, bh, liked ? "heart_full" : "heart", liked, spotify::toggleLike);
+			x += bw + gap;
+			iconButton(c, "playlist", x, y, bw, bh, "plus", playlistsOpen, () -> playlistsOpen = !playlistsOpen);
+		}
+		y += bh + 6;
+		if (spotifyOn && !spotify.message().isBlank()) {
+			String m = Draw.ellipsize(c, spotify.message(), UI, cw - 16);
+			c.text(m, UI, cx + (cw - c.textWidth(m, UI)) / 2, y, Theme.MUTED, false);
+			y += 12;
+		} else if (!spotifyOn) {
+			String m = Draw.ellipsize(c, host.tr("artlyrics.spotify.hint"), UI, cw - 16);
+			c.text(m, UI, cx + (cw - c.textWidth(m, UI)) / 2, y, Theme.FAINT, false);
+			y += 12;
+		}
+		if (spotifyOn && playlistsOpen) {
+			y = section(c, "artlyrics.ui.section.add_to_playlist", y + 2);
+			List<SpotifyAccount.Playlist> lists = spotify.playlists();
+			if (lists.isEmpty()) {
+				c.text(host.tr(spotify.busy() ? "artlyrics.spotify.loading" : "artlyrics.spotify.no_playlists"), UI, cx + 8, y + 2, Theme.MUTED, false);
+				y += 14;
+			}
+			for (SpotifyAccount.Playlist p : lists) {
+				int top = y;
+				float h = hover("pl:" + p.id(), insideContent(cx, top, cx + cw, top + 16));
+				Draw.roundRect(c, cx, top, cx + cw, top + 16, 4, Draw.lerpArgb(Theme.CARD, Theme.CARD_HOVER, h));
+				c.icon("plus", cx + 6, top + 3, Theme.MUTED);
+				c.text(Draw.ellipsize(c, p.name(), UI, cw - 30), UI, cx + 22, top + 4, Theme.TEXT, false);
+				contentHit(cx, top, cx + cw, top + 16, () -> {
+					spotify.addToPlaylist(p);
+					playlistsOpen = false;
+				});
+				y += 18;
+			}
+		}
+		return y + 2;
+	}
+
+	private boolean playlistsOpen;
+
+	private void iconButton(Canvas c, String id, int x, int y, int w, int h, String icon, boolean strong, Runnable action) {
+		float hv = hover("ib:" + id, insideContent(x, y, x + w, y + h));
+		int bg = strong ? Draw.lerpArgb(Draw.withAlpha(accent, 0.35f), Draw.withAlpha(accent, 0.55f), hv)
+				: Draw.lerpArgb(Theme.CONTROL, Theme.CONTROL_HOVER, hv);
+		Draw.roundRect(c, x, y, x + w, y + h, 6, bg);
+		c.icon(icon, x + (w - 10) / 2, y + (h - 10) / 2, Theme.TEXT);
+		contentHit(x, y, x + w, y + h, action);
 	}
 
 	// ------------------------------------------------------------------------------------------------------------
@@ -1173,11 +1298,11 @@ public final class SettingsUi {
 
 	private static final Lyrics SAMPLE_LYRICS = LrcParser.parse("[00:00.00]Your lyrics will glow right here\n[00:30.00]x", 60_000, "sample");
 
-	private static com.artlyrics.cover.CoverImage sampleCover;
+	private static CoverImage sampleCover;
 	private static boolean sampleCoverLoaded;
 
 	/** The demo song's animated cover, for the card preview. */
-	static synchronized com.artlyrics.cover.CoverImage sampleCover() {
+	static synchronized CoverImage sampleCover() {
 		if (!sampleCoverLoaded) {
 			sampleCoverLoaded = true;
 			try (java.io.InputStream in = SettingsUi.class.getResourceAsStream("/artlyrics/demo-cover.gif")) {
@@ -1237,7 +1362,7 @@ public final class SettingsUi {
 			}
 
 			@Override
-			public com.artlyrics.cover.CoverImage cover() {
+			public CoverImage cover() {
 				return sampleCover();
 			}
 

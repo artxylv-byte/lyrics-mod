@@ -46,6 +46,22 @@ public final class DemoMediaSource implements MediaSource {
 		return null;
 	}
 
+	@Override
+	public boolean send(MediaCommand command) {
+		NowPlaying now = current();
+		switch (command) {
+			case PLAY_PAUSE -> {
+				if (pausedAtMs >= 0) {
+					seek(pausedAtMs, false);
+				} else {
+					seek(now == null ? 0 : now.positionMs(), true);
+				}
+			}
+			case NEXT, PREVIOUS -> seek(0, pausedAtMs >= 0);
+		}
+		return true;
+	}
+
 	public static boolean isDemo(@Nullable NowPlaying np) {
 		return np != null && PLAYER.equals(np.player()) && TITLE.equals(np.title());
 	}

@@ -104,4 +104,9 @@ public final class Mc {
 		graphics.blit(RenderPipelines.GUI_TEXTURED, tex.id(), x, y, u, v, width, height, regionWidth, regionHeight,
 				textureWidth, textureHeight, argb);
 	}
+
+	/** Opens a web page in the default browser. */
+	public static void openUrl(String url) {
+		net.minecraft.Util.getPlatform().openUri(url);
+	}
 }

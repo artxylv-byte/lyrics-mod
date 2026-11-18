@@ -1,5 +1,6 @@
 package com.artlyrics.ui;
 
+import com.artlyrics.cover.CoverImage;
 import com.artlyrics.config.ArtlyricsConfig.TextFont;
 
 /**
@@ -28,7 +29,7 @@ public interface Canvas {
 	 * Draws a cover picture into the square (x, y, size): the frame for {@code elapsedMs} when it's animated.
 	 * Returns false if it can't be drawn yet.
 	 */
-	boolean cover(com.artlyrics.cover.CoverImage image, long elapsedMs, int x, int y, int size);
+	boolean cover(CoverImage image, long elapsedMs, int x, int y, int size);
 
 	void push();
 

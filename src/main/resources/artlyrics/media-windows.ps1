@@ -2,8 +2,9 @@
 #
 # Reads the "System Media Transport Controls" (the same info the Windows volume pop-up shows for
 # Spotify, browsers, etc.) and prints one JSON line per update to stdout. Started by the Artlyrics
-# Minecraft mod; it exits on its own when Minecraft closes. It only reads track info (and saves the
-# track's cover picture into the mod's folder), it never controls playback and never touches the network.
+# Minecraft mod; it exits on its own when Minecraft closes. It reads track info (and saves the track's cover
+# picture into the mod's folder), and only when the player uses Artlyrics' media controls does it play / pause
+# or skip, through the same Windows controls as the media keys. It never touches the network.
 param(
     [int]$ParentPid = 0,
     [string]$Prefer = 'spotify',
@@ -64,6 +65,16 @@ function Read-Cover($props) {
     }
 }
 
+# Commands from Artlyrics arrive one per line on standard input: toggle, next, previous.
+$commandReader = $null
+$pendingCommand = $null
+try {
+    $commandReader = New-Object System.IO.StreamReader([Console]::OpenStandardInput(), [System.Text.Encoding]::UTF8)
+    $pendingCommand = $commandReader.ReadLineAsync()
+} catch {
+    $pendingCommand = $null
+}
+
 $coverKey = ''
 $coverPath = ''
 $coverHash = ''
@@ -90,6 +101,28 @@ while ($true) {
             }
         }
         if ($null -eq $pick) { $pick = $manager.GetCurrentSession() }
+
+        # Carry out any commands that came in.
+        while ($null -ne $pendingCommand -and $pendingCommand.IsCompleted) {
+            $command = $null
+            try { $command = $pendingCommand.Result } catch { }
+            if ($null -eq $command) {
+                $pendingCommand = $null # Artlyrics closed our input: no more commands
+                break
+            }
+            $pendingCommand = $commandReader.ReadLineAsync()
+            if ($null -ne $pick) {
+                try {
+                    switch ($command.Trim()) {
+                        'toggle' { $null = Await ($pick.TryTogglePlayPauseAsync()) ([bool]) }
+                        'next' { $null = Await ($pick.TrySkipNextAsync()) ([bool]) }
+                        'previous' { $null = Await ($pick.TrySkipPreviousAsync()) ([bool]) }
+                    }
+                } catch {
+                    # the player didn't accept it
+                }
+            }
+        }
 
         if ($null -eq $pick) {
             Emit @{ none = $true }
@@ -141,5 +174,10 @@ while ($true) {
     } catch {
         Emit @{ error = "$($_.Exception.Message)" }
     }
-    Start-Sleep -Milliseconds 400
+    # Wait for the next update, but wake up at once when a command arrives.
+    if ($null -ne $pendingCommand) {
+        try { $null = $pendingCommand.Wait(400) } catch { Start-Sleep -Milliseconds 400 }
+    } else {
+        Start-Sleep -Milliseconds 400
+    }
 }

@@ -1,5 +1,17 @@
 package com.artlyrics;
 
+import com.artlyrics.cover.CoverArt;
+import com.artlyrics.cover.CoverImage;
+import com.artlyrics.holiday.HolidayFinder;
+import com.artlyrics.holiday.HolidayTheme;
+import com.artlyrics.holiday.Region;
+import com.artlyrics.nowplaying.MediaCommand;
+import com.artlyrics.spotify.SpotifyAccount;
+import com.artlyrics.update.Updater;
+import java.time.LocalDate;
+import java.util.Locale;
+import java.util.Objects;
+import net.minecraft.client.Minecraft;
 import com.artlyrics.compat.Mc;
 import com.artlyrics.config.ArtlyricsConfig;
 import com.artlyrics.config.TimingOffsets;
@@ -22,14 +34,16 @@ public final class Artlyrics {
 	private final PlaybackTracker tracker;
 	private final LyricsManager lyrics;
 	private final TimingOffsets songTiming;
-	private final com.artlyrics.cover.CoverArt covers;
-	private com.artlyrics.update.Updater updater;
+	private final CoverArt covers;
+	private Updater updater;
+	private SpotifyAccount spotify;
+	private String lastSongKey;
 	private final String version;
 	/** Bumped whenever settings change, so cached text layouts get rebuilt. */
 	private int settingsRevision;
 
 	Artlyrics(ArtlyricsConfig config, PlaybackTracker tracker, LyricsManager lyrics, TimingOffsets songTiming,
-			  com.artlyrics.cover.CoverArt covers, String version) {
+			  CoverArt covers, String version) {
 		this.config = config;
 		this.tracker = tracker;
 		this.lyrics = lyrics;
@@ -55,15 +69,32 @@ public final class Artlyrics {
 		return lyrics;
 	}
 
-	public @Nullable com.artlyrics.update.Updater updater() {
+	public @Nullable Updater updater() {
 		return updater;
 	}
 
-	void setUpdater(com.artlyrics.update.Updater updater) {
+	void setUpdater(Updater updater) {
 		this.updater = updater;
 	}
 
-	public com.artlyrics.cover.CoverArt covers() {
+	public @Nullable SpotifyAccount spotify() {
+		return spotify;
+	}
+
+	void setSpotify(SpotifyAccount spotify) {
+		this.spotify = spotify;
+	}
+
+	/** Every tick: lets the Spotify account know when the song changes. */
+	void songTick() {
+		String key = lyrics.trackKey();
+		if (spotify != null && !Objects.equals(key, lastSongKey)) {
+			spotify.songChanged();
+		}
+		lastSongKey = key;
+	}
+
+	public CoverArt covers() {
 		return covers;
 	}
 
@@ -88,31 +119,31 @@ public final class Artlyrics {
 
 	/** Works out which holiday theme to show today (cheap: only redone when the day or a setting changes). */
 	public void updateHoliday() {
-		com.artlyrics.holiday.Region region = holidayRegion();
-		java.time.LocalDate today = java.time.LocalDate.now();
+		Region region = holidayRegion();
+		LocalDate today = LocalDate.now();
 		String key = today + "|" + config.holidays + "|" + region + "|" + config.holidayPreview;
 		if (key.equals(holidayKey)) {
 			return;
 		}
 		holidayKey = key;
-		com.artlyrics.holiday.HolidayTheme preview = null;
-		for (com.artlyrics.holiday.HolidayTheme t : com.artlyrics.holiday.HolidayTheme.values()) {
+		HolidayTheme preview = null;
+		for (HolidayTheme t : HolidayTheme.values()) {
 			if (t.name().equalsIgnoreCase(config.holidayPreview)) {
 				preview = t;
 			}
 		}
 		if (preview != null) {
-			config.activeHoliday = com.artlyrics.holiday.HolidayFinder.preview(
-					region != null ? region : com.artlyrics.holiday.Region.UNITED_STATES, preview);
+			config.activeHoliday = HolidayFinder.preview(
+					region != null ? region : Region.UNITED_STATES, preview);
 		} else {
-			config.activeHoliday = com.artlyrics.holiday.HolidayFinder.find(region, today, config.holidays);
+			config.activeHoliday = HolidayFinder.find(region, today, config.holidays);
 		}
 	}
 
 	/** The region chosen in the settings, or the computer's own region for "auto" (null if it isn't known). */
-	public @Nullable com.artlyrics.holiday.Region holidayRegion() {
+	public @Nullable Region holidayRegion() {
 		if (!"auto".equalsIgnoreCase(config.holidayRegion)) {
-			com.artlyrics.holiday.Region chosen = com.artlyrics.holiday.Region.forCode(config.holidayRegion);
+			Region chosen = Region.forCode(config.holidayRegion);
 			if (chosen != null) {
 				return chosen;
 			}
@@ -121,12 +152,12 @@ public final class Artlyrics {
 	}
 
 	/** The computer's region setting, or else the country of Minecraft's language. */
-	public static @Nullable com.artlyrics.holiday.Region detectRegion() {
-		com.artlyrics.holiday.Region r = com.artlyrics.holiday.Region.forCode(java.util.Locale.getDefault().getCountry());
+	public static @Nullable Region detectRegion() {
+		Region r = Region.forCode(Locale.getDefault().getCountry());
 		if (r == null) {
-			net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+			Minecraft mc = Minecraft.getInstance();
 			if (mc != null && mc.options != null) {
-				r = com.artlyrics.holiday.Region.forCode(mc.options.languageCode);
+				r = Region.forCode(mc.options.languageCode);
 			}
 		}
 		return r;
@@ -231,28 +262,48 @@ public final class Artlyrics {
 			}
 
 			@Override
-			public com.artlyrics.cover.CoverImage cover() {
+			public CoverImage cover() {
 				return covers.current();
 			}
 
 			@Override
-			public com.artlyrics.update.Updater updater() {
+			public boolean sendMedia(MediaCommand command) {
+				return tracker.send(command);
+			}
+
+			@Override
+			public SpotifyAccount spotify() {
+				return spotify;
+			}
+
+			@Override
+			public String clipboard() {
+				return Minecraft.getInstance().keyboardHandler.getClipboard();
+			}
+
+			@Override
+			public void openUrl(String url) {
+				Mc.openUrl(url);
+			}
+
+			@Override
+			public Updater updater() {
 				return updater;
 			}
 
 			@Override
 			public void quitGame() {
-				net.minecraft.client.Minecraft.getInstance().stop();
+				Minecraft.getInstance().stop();
 			}
 
 			@Override
-			public com.artlyrics.holiday.Region holidayRegion() {
+			public Region holidayRegion() {
 				return mod.holidayRegion();
 			}
 
 			@Override
 			public String autoRegionName() {
-				com.artlyrics.holiday.Region r = detectRegion();
+				Region r = detectRegion();
 				return r == null ? "" : r.displayName();
 			}
 

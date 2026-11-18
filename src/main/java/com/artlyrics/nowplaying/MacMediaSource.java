@@ -59,6 +59,26 @@ final class MacMediaSource extends PollingMediaSource {
 		return choose(players, preferred);
 	}
 
+	@Override
+	public boolean send(MediaCommand command) {
+		NowPlaying np = current;
+		String id = np != null && np.player().equals("Music") ? "com.apple.Music" : "com.spotify.client";
+		boolean music = id.equals("com.apple.Music");
+		String call = switch (command) {
+			case PLAY_PAUSE -> "playpause()";
+			case NEXT -> "nextTrack()";
+			case PREVIOUS -> music ? "backTrack()" : "previousTrack()";
+		};
+		String script = "var a = Application('" + id + "'); if (a.running()) a." + call + ";";
+		try {
+			new ProcessBuilder("osascript", "-l", "JavaScript", "-e", script)
+					.redirectOutput(ProcessBuilder.Redirect.DISCARD).redirectError(ProcessBuilder.Redirect.DISCARD).start();
+			return true;
+		} catch (java.io.IOException e) {
+			return false;
+		}
+	}
+
 	private static String str(JsonObject o, String key) {
 		JsonElement e = o.get(key);
 		return e != null && e.isJsonPrimitive() ? e.getAsString() : "";

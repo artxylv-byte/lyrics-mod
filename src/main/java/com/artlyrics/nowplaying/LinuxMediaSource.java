@@ -26,6 +26,7 @@ final class LinuxMediaSource extends PollingMediaSource {
 		problem = null;
 
 		List<NowPlaying> players = new ArrayList<>();
+		java.util.Map<String, String> names = new java.util.HashMap<>();
 		for (String row : out.split("\\r?\\n")) {
 			String[] f = row.split("\t", -1);
 			if (f.length < 7 || f[4].isBlank()) {
@@ -35,12 +36,37 @@ final class LinuxMediaSource extends PollingMediaSource {
 			if (!status.equals("playing") && !status.equals("paused")) {
 				continue;
 			}
+			names.put(prettyName(f[0]), f[0].strip());
 			players.add(new NowPlaying(
 					prettyName(f[0]), f[4], f[5], f[6],
 					micros(f[3]) / 1000, micros(f[2]) / 1000,
 					status.equals("playing"), now, f.length > 7 ? f[7].strip() : ""));
 		}
-		return choose(players, preferred);
+		NowPlaying chosen = choose(players, preferred);
+		playerName = chosen == null ? null : names.get(chosen.player());
+		return chosen;
+	}
+
+	private volatile @Nullable String playerName;
+
+	@Override
+	public boolean send(MediaCommand command) {
+		List<String> cmd = new ArrayList<>(List.of("playerctl"));
+		String name = playerName;
+		if (name != null) {
+			cmd.add("--player=" + name);
+		}
+		cmd.add(switch (command) {
+			case PLAY_PAUSE -> "play-pause";
+			case NEXT -> "next";
+			case PREVIOUS -> "previous";
+		});
+		try {
+			new ProcessBuilder(cmd).redirectOutput(ProcessBuilder.Redirect.DISCARD).redirectError(ProcessBuilder.Redirect.DISCARD).start();
+			return true;
+		} catch (IOException e) {
+			return false;
+		}
 	}
 
 	private static long micros(String s) {

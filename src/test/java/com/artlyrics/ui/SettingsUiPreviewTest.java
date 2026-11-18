@@ -55,8 +55,14 @@ class SettingsUiPreviewTest {
 		render(sakura, SettingsUi.Page.NOW_PLAYING, 0, "theme-sakura-now-playing", W, H);
 		render(new FakeHost(), SettingsUi.Page.LOOK, 330, "page-3-look-fonts", W, H);
 		com.artlyrics.ui.Theme.apply(com.artlyrics.config.ArtlyricsConfig.MenuTheme.DARK);
+		// Media controls on.
+		FakeHost controls = new FakeHost();
+		controls.config.mediaControls = true;
+		render(controls, SettingsUi.Page.NOW_PLAYING, 0, "now-playing-controls", W, H);
+		render(controls, SettingsUi.Page.MUSIC, 0, "music-controls", W, H);
 		// The Music page scrolled to the lyrics sources and updates.
 		render(new FakeHost(), SettingsUi.Page.MUSIC, 600, "page-7-music-bottom", W, H);
+		render(new FakeHost(), SettingsUi.Page.SOURCES, 0, "page-8-sources", W, H);
 		// Small screens (GUI scale 4 on a 1366x768 display) get the compact sidebar.
 		render(new FakeHost(), SettingsUi.Page.NOW_PLAYING, 0, "compact-now-playing", 341, 192);
 		// Nothing playing.
@@ -195,6 +201,14 @@ class SettingsUiPreviewTest {
 		@Override
 		public com.artlyrics.update.Updater updater() {
 			return updater;
+		}
+
+		final com.artlyrics.spotify.SpotifyAccount spotify = new com.artlyrics.spotify.SpotifyAccount(
+				java.nio.file.Path.of("build/ui-preview-spotify.json"), url -> { });
+
+		@Override
+		public com.artlyrics.spotify.SpotifyAccount spotify() {
+			return spotify;
 		}
 
 		@Override

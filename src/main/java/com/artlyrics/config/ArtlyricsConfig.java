@@ -1,5 +1,6 @@
 package com.artlyrics.config;
 
+import com.artlyrics.holiday.HolidayFinder;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParseException;
@@ -188,6 +189,10 @@ public final class ArtlyricsConfig {
 	// --- Music ----------------------------------------------------------------------------------------------
 	/** When several players are active, prefer the one whose name contains this ("" = any). */
 	public String preferredPlayer = "spotify";
+	/** Play / pause, previous and next in the menu (and their keys); with Spotify connected also like and playlists. */
+	public boolean mediaControls = false;
+	/** Client ID of the player's own Spotify app (from developer.spotify.com), for liking and playlists. */
+	public String spotifyClientId = "";
 
 	// --- Lyrics sources -------------------------------------------------------------------------------------
 	/** Lyrics files in config/artlyrics/lyrics. */
@@ -241,7 +246,7 @@ public final class ArtlyricsConfig {
 			java.util.List.of("main", "claude/minecraft-sky-lyric-mods-p1mjm2"));
 
 	// --- Holidays -----------------------------------------------------------------------------------------
-	public com.artlyrics.holiday.HolidayFinder.Mode holidays = com.artlyrics.holiday.HolidayFinder.Mode.SEASONS;
+	public HolidayFinder.Mode holidays = HolidayFinder.Mode.SEASONS;
 	/** Region code ("LV", "US", ...) or "auto" for the computer's region. */
 	public String holidayRegion = "auto";
 	/** Holiday colors for lyrics, the card and this menu. */
@@ -251,7 +256,7 @@ public final class ArtlyricsConfig {
 	/** A holiday theme to try out now ("" = none). */
 	public String holidayPreview = "";
 	/** The holiday shown now; worked out by the mod, not saved. */
-	public transient com.artlyrics.holiday.HolidayFinder.Active activeHoliday;
+	public transient HolidayFinder.Active activeHoliday;
 
 	private transient Path path;
 
@@ -303,6 +308,7 @@ public final class ArtlyricsConfig {
 		if (textEffect == null) textEffect = d.textEffect;
 		if (cardCorner == null) cardCorner = d.cardCorner;
 		if (preferredPlayer == null) preferredPlayer = d.preferredPlayer;
+		if (spotifyClientId == null) spotifyClientId = "";
 		if (holidays == null) holidays = d.holidays;
 		if (updates == null) updates = d.updates;
 		if (menuTheme == null) menuTheme = d.menuTheme;
