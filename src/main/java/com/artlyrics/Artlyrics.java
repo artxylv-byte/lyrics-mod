@@ -23,6 +23,7 @@ public final class Artlyrics {
 	private final LyricsManager lyrics;
 	private final TimingOffsets songTiming;
 	private final com.artlyrics.cover.CoverArt covers;
+	private com.artlyrics.update.Updater updater;
 	private final String version;
 	/** Bumped whenever settings change, so cached text layouts get rebuilt. */
 	private int settingsRevision;
@@ -52,6 +53,14 @@ public final class Artlyrics {
 
 	public LyricsManager lyrics() {
 		return lyrics;
+	}
+
+	public @Nullable com.artlyrics.update.Updater updater() {
+		return updater;
+	}
+
+	void setUpdater(com.artlyrics.update.Updater updater) {
+		this.updater = updater;
 	}
 
 	public com.artlyrics.cover.CoverArt covers() {
@@ -224,6 +233,16 @@ public final class Artlyrics {
 			@Override
 			public com.artlyrics.cover.CoverImage cover() {
 				return covers.current();
+			}
+
+			@Override
+			public com.artlyrics.update.Updater updater() {
+				return updater;
+			}
+
+			@Override
+			public void quitGame() {
+				net.minecraft.client.Minecraft.getInstance().stop();
 			}
 
 			@Override

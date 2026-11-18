@@ -223,7 +223,13 @@ public final class SettingsUi {
 		if (!compact) {
 			String version = host.version();
 			int plus = version.indexOf('+');
-			c.text("v" + (plus > 0 ? version.substring(0, plus) : version), null, px + 12, py + ph - 14, Theme.FAINT, false);
+			String shown = "v" + (plus > 0 ? version.substring(0, plus) : version);
+			c.text(shown, null, px + 12, py + ph - 14, Theme.FAINT, false);
+			com.artlyrics.update.Updater updater = host.updater();
+			if (updater != null && updater.latest() != null
+					&& (updater.state() == com.artlyrics.update.Updater.State.AVAILABLE || updater.state() == com.artlyrics.update.Updater.State.READY)) {
+				c.text(" → " + updater.latest().version(), null, px + 12 + c.textWidth(shown, null), py + ph - 14, accent, false);
+			}
 		}
 	}
 
@@ -757,6 +763,82 @@ public final class SettingsUi {
 		return y + 4;
 	}
 
+	/** Update mode, the installed version, and a button that does the next step (check, update, restart). */
+	private int updatesSection(Canvas c, ArtlyricsConfig config, int y) {
+		y = section(c, "artlyrics.ui.section.updates", y + 2);
+		ArtlyricsConfig.UpdateMode[] modes = ArtlyricsConfig.UpdateMode.values();
+		y = rowSelector(c, "updates", "artlyrics.option.updates", y, config.updates.ordinal(),
+				labels(modes, ArtlyricsConfig.UpdateMode::translationKey), i -> config.updates = modes[i]);
+		com.artlyrics.update.Updater u = host.updater();
+		if (u == null) {
+			return y;
+		}
+		String newest = u.latest() == null ? "" : u.latest().version();
+		String status;
+		String button;
+		Runnable action;
+		switch (u.state()) {
+			case CHECKING -> {
+				status = host.tr("artlyrics.updates.checking");
+				button = "…";
+				action = () -> { };
+			}
+			case UP_TO_DATE -> {
+				status = host.tr("artlyrics.updates.up_to_date");
+				button = host.tr("artlyrics.updates.check");
+				action = () -> u.check(false);
+			}
+			case AVAILABLE -> {
+				status = String.format(Locale.ROOT, host.tr("artlyrics.updates.available"), newest);
+				button = u.canInstall() ? String.format(Locale.ROOT, host.tr("artlyrics.updates.update_to"), newest)
+						: host.tr("artlyrics.updates.check");
+				action = u.canInstall() ? u::install : () -> u.check(false);
+			}
+			case DOWNLOADING -> {
+				status = host.tr("artlyrics.updates.downloading");
+				button = Math.round(u.progress() * 100) + "%";
+				action = () -> { };
+			}
+			case READY -> {
+				status = String.format(Locale.ROOT, host.tr("artlyrics.updates.ready"), newest);
+				button = host.tr("artlyrics.updates.quit");
+				action = host::quitGame;
+			}
+			case FAILED -> {
+				status = u.message().isBlank() ? host.tr("artlyrics.updates.failed") : u.message();
+				button = host.tr("artlyrics.updates.check");
+				action = () -> u.check(false);
+			}
+			default -> {
+				status = host.tr("artlyrics.updates.not_checked");
+				button = host.tr("artlyrics.updates.check");
+				action = () -> u.check(false);
+			}
+		}
+		return rowInfoButton(c, "updateNow", y, "Artlyrics " + u.currentVersion(), status, button, action);
+	}
+
+	/** A row with its own title and status text (not from translations) and a button. */
+	private int rowInfoButton(Canvas c, String id, int y, String title, String status, String buttonText, Runnable action) {
+		int bw = Math.max(48, c.textWidth(buttonText, UI) + 16);
+		rowH = ROW_H;
+		float hv = hover("row:" + id, insideContent(cx, y, cx + cw, y + rowH - 2));
+		if (hv > 0.01f) {
+			Draw.roundRect(c, cx, y, cx + cw, y + rowH - 2, 4, Draw.withAlpha(0xFFFFFF, 0.04f * hv));
+		}
+		int textMax = cw - bw - 22;
+		c.text(Draw.ellipsize(c, title, UI, textMax), UI, cx + 8, y + 3, Theme.TEXT, false);
+		c.text(Draw.ellipsize(c, status, UI, textMax), UI, cx + 8, y + 13, Theme.MUTED, false);
+		int x1 = cx + cw - 8;
+		int x0 = x1 - bw;
+		int by = rowMid(y) - 7;
+		float h = hover("btn:" + id, insideContent(x0, by, x1, by + 14));
+		Draw.roundRect(c, x0, by, x1, by + 14, 4, Draw.lerpArgb(Draw.withAlpha(accent, 0.25f), Draw.withAlpha(accent, 0.45f), h));
+		c.text(buttonText, UI, x0 + (bw - c.textWidth(buttonText, UI)) / 2, by + 3, Theme.TEXT, false);
+		contentHit(x0, by, x1, by + 14, action);
+		return y + rowH;
+	}
+
 	private String when(long daysAway) {
 		if (daysAway == 0) {
 			return host.tr("artlyrics.holidays.today");
@@ -809,6 +891,8 @@ public final class SettingsUi {
 			config.estimateUnsynced = v;
 			host.refreshLyrics();
 		});
+
+		y = updatesSection(c, config, y);
 
 		y = section(c, "artlyrics.ui.section.status", y + 2);
 		NowPlaying track = host.track();

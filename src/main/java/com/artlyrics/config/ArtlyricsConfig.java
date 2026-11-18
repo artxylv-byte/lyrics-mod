@@ -189,6 +189,26 @@ public final class ArtlyricsConfig {
 	/** When a song only has lyrics without timestamps, spread them over the song instead of showing nothing. */
 	public boolean estimateUnsynced = true;
 
+	// --- Updates ------------------------------------------------------------------------------------------
+	public enum UpdateMode {
+		/** Download new versions by itself; they're used from the next start. */
+		AUTOMATIC,
+		/** Only say when there's a new version. */
+		NOTIFY,
+		OFF;
+
+		public String translationKey() {
+			return "artlyrics.updates." + name().toLowerCase(Locale.ROOT);
+		}
+	}
+
+	public UpdateMode updates = UpdateMode.AUTOMATIC;
+	/** GitHub repository ("owner/name") whose downloads folder has the mod's jars. */
+	public String updateRepository = "artxylv-byte/lyrics-mod";
+	/** Branches to look in; the newest version found in any of them is used. */
+	public java.util.List<String> updateBranches = new java.util.ArrayList<>(
+			java.util.List.of("main", "claude/minecraft-sky-lyric-mods-p1mjm2"));
+
 	// --- Holidays -----------------------------------------------------------------------------------------
 	public com.artlyrics.holiday.HolidayFinder.Mode holidays = com.artlyrics.holiday.HolidayFinder.Mode.SEASONS;
 	/** Region code ("LV", "US", ...) or "auto" for the computer's region. */
@@ -253,6 +273,10 @@ public final class ArtlyricsConfig {
 		if (cardCorner == null) cardCorner = d.cardCorner;
 		if (preferredPlayer == null) preferredPlayer = d.preferredPlayer;
 		if (holidays == null) holidays = d.holidays;
+		if (updates == null) updates = d.updates;
+		if (updateRepository == null || !updateRepository.matches("[\\w.-]+/[\\w.-]+")) updateRepository = d.updateRepository;
+		if (updateBranches == null || updateBranches.isEmpty()) updateBranches = d.updateBranches;
+		updateBranches.removeIf(b -> b == null || b.isBlank());
 		if (holidayRegion == null || holidayRegion.isBlank()) holidayRegion = d.holidayRegion;
 		if (holidayPreview == null) holidayPreview = "";
 

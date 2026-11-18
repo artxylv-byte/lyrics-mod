@@ -22,6 +22,8 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.loader.api.FabricLoader;
+import net.fabricmc.loader.api.metadata.ModOrigin;
+import com.artlyrics.update.Updater;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -83,7 +85,16 @@ public final class ArtlyricsClient implements ClientModInitializer {
 		earlier = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.artlyrics.earlier", GLFW.GLFW_KEY_LEFT_BRACKET, CATEGORY));
 		later = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.artlyrics.later", GLFW.GLFW_KEY_RIGHT_BRACKET, CATEGORY));
 
-		ClientLifecycleEvents.CLIENT_STARTED.register(client -> tracker.start());
+		Updater updater = new Updater(version, installedJar(), config.updateRepository, config.updateBranches, userAgent);
+		updater.resumePending();
+		mod.setUpdater(updater);
+
+		ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
+			tracker.start();
+			if (config.updates != ArtlyricsConfig.UpdateMode.OFF) {
+				updater.check(config.updates == ArtlyricsConfig.UpdateMode.AUTOMATIC);
+			}
+		});
 		ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
 			tracker.close();
 			lyrics.close();
@@ -97,10 +108,41 @@ public final class ArtlyricsClient implements ClientModInitializer {
 			lyrics.update(tracker.track(), now);
 			covers.update(tracker.track(), now);
 			mod.updateHoliday();
+			tellAboutUpdate(client, mod);
 			handleKeys(client, mod);
 		});
 
 		LOGGER.info("[Artlyrics] Ready ({}).", version);
+	}
+
+	private static Updater.State toldState;
+
+	/** Once per news, in chat when playing: a new version is ready, or available to install from the menu. */
+	private static void tellAboutUpdate(Minecraft client, Artlyrics mod) {
+		Updater u = mod.updater();
+		if (u == null || client.player == null || mod.config().updates == ArtlyricsConfig.UpdateMode.OFF) {
+			return;
+		}
+		Updater.State state = u.state();
+		if (state == toldState || (state != Updater.State.READY && state != Updater.State.AVAILABLE) || u.latest() == null) {
+			return;
+		}
+		toldState = state;
+		String key = state == Updater.State.READY ? "artlyrics.chat.update_ready" : "artlyrics.chat.update_available";
+		client.gui.getChat().addMessage(Component.translatable(key, u.latest().version()));
+	}
+
+	/** The jar file this mod was loaded from, or null when running from a development build. */
+	private static Path installedJar() {
+		return FabricLoader.getInstance().getModContainer(Artlyrics.MOD_ID).flatMap(c -> {
+			ModOrigin origin = c.getOrigin();
+			if (origin.getKind() != ModOrigin.Kind.PATH) {
+				return java.util.Optional.empty();
+			}
+			return origin.getPaths().stream()
+					.filter(p -> p.getFileName() != null && p.getFileName().toString().endsWith(".jar") && java.nio.file.Files.isRegularFile(p))
+					.findFirst();
+		}).orElse(null);
 	}
 
 	private static void handleKeys(Minecraft client, Artlyrics mod) {

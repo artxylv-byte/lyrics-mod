@@ -70,6 +70,21 @@ The only network requests the mod makes go to the lyrics sites (`lrclib.net` and
 `itunes.apple.com` and the picture address the player names. They contain the track's title, artist, album and
 length. Each can be switched off in the settings.
 
+## Updates
+
+Artlyrics keeps itself up to date from this repository: when a newer `Artlyrics-<version>-mc<minecraft>.jar` for
+your Minecraft version appears in `downloads/` (on `main` or the development branch), it's found when you start
+Minecraft. On the Music page, **Updates** can be:
+
+- **Automatic** (default): the new jar is downloaded in the background, checked (size, Git checksum, that it's
+  Artlyrics of that version) and saved next to the old one as `.jar.download`. When Minecraft closes, a small
+  helper deletes the old jar and puts the new one in its place, so the next start uses the new version. A chat
+  message tells you when an update is ready, and **Quit game** finishes it right away.
+- **Tell me**: a chat message says a new version is available; **Update to …** on the Music page installs it.
+- **Off**.
+
+If anything goes wrong the old version keeps working, and an unfinished update is completed at the next start.
+
 ## Holiday themes
 
 Artlyrics dresses up for the holidays where you are. Pick your **Region** on the Holidays page (or leave it on

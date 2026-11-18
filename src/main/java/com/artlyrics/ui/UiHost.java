@@ -36,6 +36,15 @@ public interface UiHost {
 		return null;
 	}
 
+	/** Checks for and installs new versions, or null where that isn't possible. */
+	default @Nullable com.artlyrics.update.Updater updater() {
+		return null;
+	}
+
+	/** Closes Minecraft (to finish an update). */
+	default void quitGame() {
+	}
+
 	/** The holiday theme shown now, or null. */
 	default @Nullable com.artlyrics.holiday.HolidayFinder.Active holiday() {
 		return config().activeHoliday;

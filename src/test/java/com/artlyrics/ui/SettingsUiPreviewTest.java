@@ -46,6 +46,8 @@ class SettingsUiPreviewTest {
 		custom.config.style = LyricStyle.CUSTOM;
 		render(custom, SettingsUi.Page.LOOK, 260, "page-3-look-scrolled", W, H);
 		render(custom, SettingsUi.Page.LOOK, 600, "page-3-look-bottom", W, H);
+		// The Music page scrolled to the lyrics sources and updates.
+		render(new FakeHost(), SettingsUi.Page.MUSIC, 600, "page-7-music-bottom", W, H);
 		// Small screens (GUI scale 4 on a 1366x768 display) get the compact sidebar.
 		render(new FakeHost(), SettingsUi.Page.NOW_PLAYING, 0, "compact-now-playing", 341, 192);
 		// Nothing playing.
@@ -178,6 +180,13 @@ class SettingsUiPreviewTest {
 		}
 
 		boolean withCover = true;
+		final com.artlyrics.update.Updater updater = new com.artlyrics.update.Updater("1.5.0+mc1.21.11", null, "o/r",
+				java.util.List.of("main"), "preview");
+
+		@Override
+		public com.artlyrics.update.Updater updater() {
+			return updater;
+		}
 
 		@Override
 		public com.artlyrics.cover.CoverImage cover() {
