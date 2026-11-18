@@ -189,10 +189,26 @@ public final class ArtlyricsConfig {
 	/** When a song only has lyrics without timestamps, spread them over the song instead of showing nothing. */
 	public boolean estimateUnsynced = true;
 
+	// --- Holidays -----------------------------------------------------------------------------------------
+	public com.artlyrics.holiday.HolidayFinder.Mode holidays = com.artlyrics.holiday.HolidayFinder.Mode.SEASONS;
+	/** Region code ("LV", "US", ...) or "auto" for the computer's region. */
+	public String holidayRegion = "auto";
+	/** Holiday colors for lyrics, the card and this menu. */
+	public boolean holidayColors = true;
+	/** Holiday decorations around the lyrics and on the card. */
+	public boolean holidayDecorations = true;
+	/** A holiday theme to try out now ("" = none). */
+	public String holidayPreview = "";
+	/** The holiday shown now; worked out by the mod, not saved. */
+	public transient com.artlyrics.holiday.HolidayFinder.Active activeHoliday;
+
 	private transient Path path;
 
 	/** The palette in use, resolving {@link LyricStyle#CUSTOM} to the user's colors. */
 	public Palette palette() {
+		if (activeHoliday != null && holidayColors) {
+			return activeHoliday.palette();
+		}
 		if (style == LyricStyle.CUSTOM) {
 			return new Palette(customFrom & 0xFFFFFF, customTo & 0xFFFFFF, customAccent & 0xFFFFFF, false);
 		}
@@ -236,6 +252,9 @@ public final class ArtlyricsConfig {
 		if (textEffect == null) textEffect = d.textEffect;
 		if (cardCorner == null) cardCorner = d.cardCorner;
 		if (preferredPlayer == null) preferredPlayer = d.preferredPlayer;
+		if (holidays == null) holidays = d.holidays;
+		if (holidayRegion == null || holidayRegion.isBlank()) holidayRegion = d.holidayRegion;
+		if (holidayPreview == null) holidayPreview = "";
 
 		animationSpeed = clamp(animationSpeed, 0.5f, 2f, d.animationSpeed);
 		lingerSeconds = clamp(lingerSeconds, 0.5f, 6f, d.lingerSeconds);

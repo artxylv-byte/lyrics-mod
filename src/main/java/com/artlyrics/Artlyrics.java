@@ -75,6 +75,54 @@ public final class Artlyrics {
 		return tracker.positionMs() + config.offsetMs + songOffsetMs();
 	}
 
+	private String holidayKey;
+
+	/** Works out which holiday theme to show today (cheap: only redone when the day or a setting changes). */
+	public void updateHoliday() {
+		com.artlyrics.holiday.Region region = holidayRegion();
+		java.time.LocalDate today = java.time.LocalDate.now();
+		String key = today + "|" + config.holidays + "|" + region + "|" + config.holidayPreview;
+		if (key.equals(holidayKey)) {
+			return;
+		}
+		holidayKey = key;
+		com.artlyrics.holiday.HolidayTheme preview = null;
+		for (com.artlyrics.holiday.HolidayTheme t : com.artlyrics.holiday.HolidayTheme.values()) {
+			if (t.name().equalsIgnoreCase(config.holidayPreview)) {
+				preview = t;
+			}
+		}
+		if (preview != null) {
+			config.activeHoliday = com.artlyrics.holiday.HolidayFinder.preview(
+					region != null ? region : com.artlyrics.holiday.Region.UNITED_STATES, preview);
+		} else {
+			config.activeHoliday = com.artlyrics.holiday.HolidayFinder.find(region, today, config.holidays);
+		}
+	}
+
+	/** The region chosen in the settings, or the computer's own region for "auto" (null if it isn't known). */
+	public @Nullable com.artlyrics.holiday.Region holidayRegion() {
+		if (!"auto".equalsIgnoreCase(config.holidayRegion)) {
+			com.artlyrics.holiday.Region chosen = com.artlyrics.holiday.Region.forCode(config.holidayRegion);
+			if (chosen != null) {
+				return chosen;
+			}
+		}
+		return detectRegion();
+	}
+
+	/** The computer's region setting, or else the country of Minecraft's language. */
+	public static @Nullable com.artlyrics.holiday.Region detectRegion() {
+		com.artlyrics.holiday.Region r = com.artlyrics.holiday.Region.forCode(java.util.Locale.getDefault().getCountry());
+		if (r == null) {
+			net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+			if (mc != null && mc.options != null) {
+				r = com.artlyrics.holiday.Region.forCode(mc.options.languageCode);
+			}
+		}
+		return r;
+	}
+
 	public int settingsRevision() {
 		return settingsRevision;
 	}
@@ -82,6 +130,7 @@ public final class Artlyrics {
 	/** Applies changed settings right away. Call {@code config().save()} to persist them. */
 	public void settingsChanged() {
 		settingsRevision++;
+		holidayKey = null;
 		tracker.system().setPreferredPlayer(config.preferredPlayer);
 	}
 
@@ -175,6 +224,17 @@ public final class Artlyrics {
 			@Override
 			public com.artlyrics.cover.CoverImage cover() {
 				return covers.current();
+			}
+
+			@Override
+			public com.artlyrics.holiday.Region holidayRegion() {
+				return mod.holidayRegion();
+			}
+
+			@Override
+			public String autoRegionName() {
+				com.artlyrics.holiday.Region r = detectRegion();
+				return r == null ? "" : r.displayName();
 			}
 
 			@Override

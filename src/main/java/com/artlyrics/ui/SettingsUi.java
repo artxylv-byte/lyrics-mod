@@ -5,6 +5,9 @@ import com.artlyrics.config.ArtlyricsConfig.TextFont;
 import com.artlyrics.config.Look;
 import com.artlyrics.config.LyricStyle;
 import com.artlyrics.config.Palette;
+import com.artlyrics.holiday.HolidayFinder;
+import com.artlyrics.holiday.HolidayTheme;
+import com.artlyrics.holiday.Region;
 import com.artlyrics.lyrics.LrcParser;
 import com.artlyrics.lyrics.Lyrics;
 import com.artlyrics.lyrics.LyricsManager;
@@ -27,7 +30,7 @@ import java.util.function.IntConsumer;
  */
 public final class SettingsUi {
 	public enum Page {
-		NOW_PLAYING("note"), LYRICS("lyrics"), LOOK("palette"), PLACEMENT("compass"), CARD("card"), MUSIC("headphones");
+		NOW_PLAYING("note"), LYRICS("lyrics"), LOOK("palette"), HOLIDAYS("star"), PLACEMENT("compass"), CARD("card"), MUSIC("headphones");
 
 		final String icon;
 
@@ -169,6 +172,7 @@ public final class SettingsUi {
 			case PLACEMENT -> pagePlacement(c, start);
 			case CARD -> pageCard(c, start);
 			case MUSIC -> pageMusic(c, start);
+			case HOLIDAYS -> pageHolidays(c, start);
 		};
 		c.unclip();
 		c.setAlpha(baseAlpha * open);
@@ -678,6 +682,87 @@ public final class SettingsUi {
 			y = rowButton(c, "coversFolder", "artlyrics.option.covers_folder", "artlyrics.ui.open", y, host::openCoversFolder);
 		}
 		return y;
+	}
+
+	private int pageHolidays(Canvas c, int y) {
+		ArtlyricsConfig config = host.config();
+		HolidayFinder.Mode[] modes = HolidayFinder.Mode.values();
+		y = rowSelector(c, "holidayMode", "artlyrics.option.holidays", y, config.holidays.ordinal(),
+				labels(modes, HolidayFinder.Mode::translationKey), i -> config.holidays = modes[i]);
+
+		Region[] regions = Region.values();
+		String[] regionNames = new String[regions.length + 1];
+		String auto = host.autoRegionName();
+		regionNames[0] = host.tr("artlyrics.holidays.auto") + (auto.isEmpty() ? "" : " (" + auto + ")");
+		int regionIndex = 0;
+		for (int i = 0; i < regions.length; i++) {
+			regionNames[i + 1] = regions[i].displayName();
+			if (regions[i].code().equalsIgnoreCase(config.holidayRegion)) {
+				regionIndex = i + 1;
+			}
+		}
+		y = rowSelector(c, "region", "artlyrics.option.region", y, regionIndex, regionNames,
+				i -> config.holidayRegion = i == 0 ? "auto" : regions[i - 1].code());
+		y = rowToggle(c, "holidayColors", "artlyrics.option.holiday_colors", y, config.holidayColors, v -> config.holidayColors = v);
+		y = rowToggle(c, "holidayDecor", "artlyrics.option.holiday_decorations", y, config.holidayDecorations,
+				v -> config.holidayDecorations = v);
+
+		HolidayTheme[] themes = HolidayTheme.values();
+		String[] themeNames = new String[themes.length + 1];
+		themeNames[0] = host.tr("artlyrics.holidays.preview_none");
+		int themeIndex = 0;
+		for (int i = 0; i < themes.length; i++) {
+			themeNames[i + 1] = themes[i].label();
+			if (themes[i].name().equalsIgnoreCase(config.holidayPreview)) {
+				themeIndex = i + 1;
+			}
+		}
+		y = rowSelector(c, "holidayPreview", "artlyrics.option.holiday_preview", y, themeIndex, themeNames,
+				i -> config.holidayPreview = i == 0 ? "" : themes[i - 1].name());
+
+		// What's shown now, and the region's next holidays.
+		y = section(c, "artlyrics.ui.section.holiday_now", y + 2);
+		HolidayFinder.Active active = host.holiday();
+		String now = active == null ? host.tr("artlyrics.holidays.none_now")
+				: active.holiday().name() + "  ·  " + when(active.daysAway());
+		c.text(Draw.ellipsize(c, now, UI, cw - 16), UI, cx + 8, y + 2, active != null ? Theme.TEXT : Theme.MUTED, false);
+		y += 15;
+		Region region = host.holidayRegion();
+		if (region != null) {
+			java.time.LocalDate today = java.time.LocalDate.now();
+			List<String[]> upcoming = new ArrayList<>();
+			List<java.time.LocalDate> dates = new ArrayList<>();
+			for (com.artlyrics.holiday.Holiday h : region.holidays()) {
+				java.time.LocalDate d = h.dateIn(today.getYear());
+				if (d.isBefore(today)) {
+					d = h.dateIn(today.getYear() + 1);
+				}
+				int at = 0;
+				while (at < dates.size() && !dates.get(at).isAfter(d)) {
+					at++;
+				}
+				dates.add(at, d);
+				upcoming.add(at, new String[] {h.name(), d.format(java.time.format.DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH))});
+			}
+			c.text(Draw.ellipsize(c, host.tr("artlyrics.holidays.coming_up") + " " + region.displayName(), UI, cw - 16), UI,
+					cx + 8, y + 2, Theme.FAINT, false);
+			y += 13;
+			for (int i = 0; i < Math.min(5, upcoming.size()); i++) {
+				String[] row = upcoming.get(i);
+				c.text(Draw.ellipsize(c, row[0], UI, cw - 80), UI, cx + 14, y + 2, Theme.MUTED, false);
+				c.text(row[1], UI, cx + cw - 8 - c.textWidth(row[1], UI), y + 2, Theme.MUTED, false);
+				y += 12;
+			}
+		}
+		return y + 4;
+	}
+
+	private String when(long daysAway) {
+		if (daysAway == 0) {
+			return host.tr("artlyrics.holidays.today");
+		}
+		return String.format(Locale.ROOT, host.tr(daysAway < 0 ? "artlyrics.holidays.in_days" : "artlyrics.holidays.days_ago"),
+				Math.abs(daysAway));
 	}
 
 	private int pageMusic(Canvas c, int y) {

@@ -4,6 +4,8 @@ import com.artlyrics.config.ArtlyricsConfig;
 import com.artlyrics.config.ArtlyricsConfig.TextFont;
 import com.artlyrics.config.Palette;
 import com.artlyrics.cover.CoverImage;
+import com.artlyrics.holiday.Decorations;
+import com.artlyrics.holiday.HolidayFinder;
 import com.artlyrics.lyrics.LyricLine;
 import com.artlyrics.lyrics.LyricWord;
 import com.artlyrics.lyrics.Lyrics;
@@ -125,6 +127,10 @@ public final class SongCardView {
 
 		Draw.roundRect(c, x, y, x + width, y + height, 5, Draw.withAlpha(0x14111C, config.cardOpacity));
 		Draw.roundOutline(c, x, y, x + width, y + height, 5, Draw.withAlpha(0xFFFFFF, 0.07f));
+		HolidayFinder.Active holiday = config.holidayDecorations ? host.holiday() : null;
+		if (holiday != null) {
+			drawDecorations(c, holiday, x, y, width, height, now);
+		}
 
 		// Art tile: the song's cover, or a palette gradient with a note while there is none.
 		int art = art(config);
@@ -133,7 +139,17 @@ public final class SongCardView {
 		double seconds = now / 1e9;
 		c.gradientV(ax, ay, ax + art, ay + art, 0xFF000000 | palette.colorAt(0f, seconds), 0xFF000000 | palette.colorAt(1f, seconds));
 		c.fill(ax, ay, ax + art, ay + art, 0x1A000000);
-		c.icon("note", ax + (art - 10) / 2, ay + (art - 10) / 2, 0xF0FFFFFF);
+		if (holiday != null) {
+			// The holiday's own symbol instead of the note.
+			String glyph = holiday.theme().glyphs()[0];
+			c.push();
+			c.translate(ax + art / 2f, ay + art / 2f);
+			c.scale(art / 14f);
+			c.text(glyph, null, -c.textWidth(glyph, null) / 2, -4, 0xF0FFFFFF, false);
+			c.pop();
+		} else {
+			c.icon("note", ax + (art - 10) / 2, ay + (art - 10) / 2, 0xF0FFFFFF);
+		}
 		drawCover(c, host, config, ax, ay, art, now);
 
 		int tx = ax + art + 6;
@@ -154,6 +170,23 @@ public final class SongCardView {
 			cy += ROW;
 		}
 		drawLyrics(c, x + PAD, cy, width - PAD * 2, cardFont(config.font), now);
+	}
+
+	/** The holiday's decorations drifting softly over the card, behind the text. */
+	private void drawDecorations(Canvas c, HolidayFinder.Active holiday, int x, int y, int width, int height, long now) {
+		float alpha = c.alpha();
+		for (Decorations.Piece p : Decorations.at(holiday.theme(), holiday.decorationColors(), 9, now / 1e9, width, height)) {
+			if (p.x() < 3 || p.x() > width - 3 || p.y() < 2 || p.y() > height - 2) {
+				continue;
+			}
+			c.setAlpha(alpha * p.alpha() * 0.35f);
+			c.push();
+			c.translate(x + p.x(), y + p.y());
+			c.scale(p.scale() * 0.8f);
+			c.text(p.glyph(), null, -c.textWidth(p.glyph(), null) / 2, -4, 0xFF000000 | p.color(), false);
+			c.pop();
+		}
+		c.setAlpha(alpha);
 	}
 
 	private static int art(ArtlyricsConfig config) {

@@ -96,6 +96,7 @@ public final class ArtlyricsClient implements ClientModInitializer {
 			tracker.frame(now);
 			lyrics.update(tracker.track(), now);
 			covers.update(tracker.track(), now);
+			mod.updateHoliday();
 			handleKeys(client, mod);
 		});
 

@@ -70,6 +70,28 @@ The only network requests the mod makes go to the lyrics sites (`lrclib.net` and
 `itunes.apple.com` and the picture address the player names. They contain the track's title, artist, album and
 length. Each can be switched off in the settings.
 
+## Holiday themes
+
+Artlyrics dresses up for the holidays where you are. Pick your **Region** on the Holidays page (or leave it on
+**Auto**, which uses your computer's region), and around each holiday the lyrics, the song card and the menu take
+on its colors, with matching decorations floating around the lyrics and over the card: snow at Christmas,
+fireworks at New Year, lanterns at Seollal and the Lunar New Year, hearts for Valentine's Day, a harvest moon at
+Chuseok, flowers at Midsummer and Easter, leaves at Thanksgiving, and the flag's colors (with confetti) on
+national days. Small holidays give way to a big one close by.
+
+- **Holiday seasons** shows a theme in the days around each holiday (all of December for Christmas, a few days
+  for a flag day); **Always nearest** always uses the nearest holiday; **Off** turns it off.
+- **Try a theme** shows any holiday's look right away.
+- Holiday colors and decorations can be switched off separately.
+
+Regions: Latvia, Lithuania, Estonia, Finland, Sweden, Norway, Denmark, Germany, Austria, Switzerland, the
+Netherlands, Belgium, France, Spain, Portugal, Italy, the United Kingdom, Ireland, Poland, Czechia, Slovakia,
+Hungary, Romania, Bulgaria, Greece, Croatia, Serbia, Ukraine, Türkiye, the United States, Canada, Mexico, Brazil,
+South Korea, Japan, China, Taiwan, India and Australia. Movable dates are worked out for every year: Easter
+(Orthodox Easter for Ukraine, Romania, Bulgaria, Greece and Serbia), Midsummer, Thanksgiving, and the lunar
+calendar's Seollal, Chuseok, Buddha's Birthday, the Spring, Lantern, Dragon Boat and Mid-Autumn Festivals, Diwali
+and Holi.
+
 ## Cover pictures
 
 The song card shows the song's cover, taken from (in this order):
@@ -106,6 +128,7 @@ screen, so turn on **Demo song** and watch while you adjust.
 | --- | --- |
 | Now Playing | The current song, whether lyrics were found, the line being sung, quick settings |
 | Lyrics | Mode, animation, animation speed, exit style, how long lines linger, sync offset, this song's timing, whole line at once, next-line preview and its visibility |
+| Holidays | Holiday themes (seasons / always nearest / off), region, holiday colors, decorations, try a theme, what's on now and coming up |
 | Look | Looks, fonts, palettes (with a custom color editor), text effect, glow, size, opacity, line width, bold, italic, ALL CAPS |
 | Placement | Skywriting height, distance, scatter, drift and arc; hover distance, height and how quickly it follows your view |
 | Song Card | Show or hide, position, size, background, artist, progress, next-line preview, album cover, big cover, animated covers, find covers online, covers folder, with a live preview |

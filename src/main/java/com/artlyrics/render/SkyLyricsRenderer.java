@@ -4,6 +4,8 @@ import com.artlyrics.Artlyrics;
 import com.artlyrics.compat.Mc;
 import com.artlyrics.config.ArtlyricsConfig;
 import com.artlyrics.config.Palette;
+import com.artlyrics.holiday.Decorations;
+import com.artlyrics.holiday.HolidayFinder;
 import com.artlyrics.lyrics.LyricLine;
 import com.artlyrics.lyrics.LyricWord;
 import com.artlyrics.lyrics.Lyrics;
@@ -271,6 +273,9 @@ public final class SkyLyricsRenderer {
 		if (newest && config.nextLinePreview) {
 			drawPreview(shownLine, config, revision, f, timeMs, baseAlpha, palette, seconds);
 		}
+		if (newest && config.holidayDecorations && config.activeHoliday != null) {
+			drawDecorations(config.activeHoliday, layout, f, baseAlpha, seconds);
+		}
 
 		if (config.animation == ArtlyricsConfig.Animation.SPOTLIGHT) {
 			int wi = line.wordIndexAt(timeMs);
@@ -393,6 +398,31 @@ public final class SkyLyricsRenderer {
 			int rgb = Palette.lerpRgb(unsungRgb, sungRgb, lit);
 			float rise = -1.2f * lit * (1f - Easing.clamp01((edge - x1) / 24f));
 			drawGlyphs(f, box, letters[i], x0, box.xCenter(), box.y(), box.rowHalfWidth(), lineScale, rise, a, rgb);
+		}
+	}
+
+	/** The holiday's decorations around the current line: snow falling past it, lanterns rising, fireworks... */
+	private void drawDecorations(HolidayFinder.Active holiday, LineLayout layout, Frame f, float baseAlpha, double seconds) {
+		float boxW = layout.width() + 60f;
+		float boxH = layout.height() + 44f;
+		int count = f.sky ? 14 : 10;
+		Font.DisplayMode mode = f.sky ? Font.DisplayMode.POLYGON_OFFSET : Font.DisplayMode.SEE_THROUGH;
+		for (Decorations.Piece p : Decorations.at(holiday.theme(), holiday.decorationColors(), count, seconds, boxW, boxH)) {
+			float alpha = baseAlpha * p.alpha() * 0.75f;
+			// Keep the words readable: decorations passing over the text almost disappear.
+			if (Math.abs(p.x() - boxW / 2f) < layout.width() / 2f + 6f && Math.abs(p.y() - boxH / 2f) < layout.height() / 2f + 4f) {
+				alpha *= 0.12f;
+			}
+			if (alpha <= 0.02f) {
+				continue;
+			}
+			Matrix4f matrix = SkyGeometry.wordMatrix(f.poseStack.last().pose(), f.yaw, f.elev, f.distance, 0f, f.distance * f.radPerPx)
+					.translate(p.x() - boxW / 2f, p.y() - boxH / 2f, -0.3f)
+					.rotateZ(p.rotation())
+					.scale(p.scale(), p.scale(), 1f);
+			Component glyph = Component.literal(p.glyph());
+			f.font.drawInBatch(glyph, -f.font.width(glyph) / 2f, -4.5f, ARGB.color(alpha, p.color()), false, matrix, f.buffers, mode, 0,
+					LightTexture.FULL_BRIGHT);
 		}
 	}
 

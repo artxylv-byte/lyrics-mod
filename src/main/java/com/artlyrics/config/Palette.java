@@ -4,9 +4,22 @@ package com.artlyrics.config;
  * Colors for one line of lyrics: words are tinted along a gradient from {@code from} to {@code to} across the
  * line, and the word being sung leans towards {@code accent}. {@code shifting} palettes slowly cycle their hues.
  */
-public record Palette(int from, int to, int accent, boolean shifting) {
+public record Palette(int from, int to, int accent, boolean shifting, int[] bands) {
+	public Palette(int from, int to, int accent, boolean shifting) {
+		this(from, to, accent, shifting, null);
+	}
+
+	/** Words take these colors in equal parts along the line, like the stripes of a flag. */
+	public static Palette bands(int accent, int... colors) {
+		return new Palette(colors[0], colors[colors.length - 1], accent, false, colors.clone());
+	}
+
 	/** RGB color for a word at position {@code t} (0..1) along the line. */
 	public int colorAt(float t, double timeSeconds) {
+		if (bands != null && bands.length > 0) {
+			int i = (int) (Math.max(0f, Math.min(1f, t)) * bands.length);
+			return bands[Math.min(bands.length - 1, i)];
+		}
 		if (shifting) {
 			// Drift between green, teal and violet like northern lights, rather than a full rainbow.
 			double phase = Math.sin(timeSeconds * 0.35 + t * 2.2) * 0.5 + 0.5;

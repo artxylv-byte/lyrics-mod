@@ -39,6 +39,15 @@ final class LineLayout {
 		this.rows = rows;
 	}
 
+	/** Width of the widest row in font pixels. */
+	float width() {
+		float w = 1;
+		for (WordBox b : words) {
+			w = Math.max(w, b.rowHalfWidth() * 2);
+		}
+		return w;
+	}
+
 	/** Height of the text block in font pixels. */
 	float height() {
 		return Math.max(1, rows) * ROW_HEIGHT;

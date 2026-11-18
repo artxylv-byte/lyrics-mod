@@ -36,6 +36,21 @@ public interface UiHost {
 		return null;
 	}
 
+	/** The holiday theme shown now, or null. */
+	default @Nullable com.artlyrics.holiday.HolidayFinder.Active holiday() {
+		return config().activeHoliday;
+	}
+
+	/** The region whose holidays are used, or null if it isn't known. */
+	default @Nullable com.artlyrics.holiday.Region holidayRegion() {
+		return com.artlyrics.holiday.Region.forCode(config().holidayRegion);
+	}
+
+	/** Name of the region found automatically (for "Auto (Latvia)"), or "" if unknown. */
+	default String autoRegionName() {
+		return "";
+	}
+
 	/** Opens the folder where players can put their own cover pictures. */
 	default void openCoversFolder() {
 	}

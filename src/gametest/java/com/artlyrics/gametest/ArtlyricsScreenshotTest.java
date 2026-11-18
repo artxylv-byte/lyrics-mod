@@ -89,8 +89,31 @@ public class ArtlyricsScreenshotTest implements FabricClientGameTest {
 			context.takeScreenshot("08d-big-animated-cover-later-frame");
 			context.runOnClient(client -> Artlyrics.get().config().cardBigCover = false);
 
+			// Holiday themes: Latvia's flag day, Christmas in hover mode, Seollal with lanterns.
+			shot(context, "08e-holiday-latvia-flag-day", 4_200, -14f, c -> {
+				c.apply(Look.STARLIGHT);
+				c.holidayRegion = "LV";
+				c.holidayPreview = "NATIONAL";
+			});
+			shot(context, "08f-holiday-christmas-hover", 9_300, 4f, c -> {
+				c.apply(Look.STARLIGHT);
+				c.displayMode = ArtlyricsConfig.DisplayMode.HOVER;
+				c.holidayPreview = "CHRISTMAS";
+			});
+			shot(context, "08g-holiday-lunar-new-year", 13_200, -14f, c -> {
+				c.apply(Look.STARLIGHT);
+				c.holidayRegion = "KR";
+				c.holidayPreview = "LUNAR_NEW_YEAR";
+			});
+			context.runOnClient(client -> {
+				ArtlyricsConfig c = Artlyrics.get().config();
+				c.holidayPreview = "NATIONAL";
+				c.holidayRegion = "LV";
+				Artlyrics.get().settingsChanged();
+			});
+
 			context.setScreen(() -> new ArtlyricsScreen(null));
-			for (int i = 0; i < 6; i++) {
+			for (int i = 0; i < com.artlyrics.ui.SettingsUi.Page.values().length; i++) {
 				int page = i;
 				context.runOnClient(client -> {
 					if (client.screen instanceof ArtlyricsScreen screen) {
@@ -134,6 +157,10 @@ public class ArtlyricsScreenshotTest implements FabricClientGameTest {
 			c.displayMode = defaults.displayMode;
 			c.cardCorner = defaults.cardCorner;
 			c.arc = defaults.arc;
+			// Holiday themes off unless a shot asks for one, so screenshots don't depend on today's date.
+			c.holidays = com.artlyrics.holiday.HolidayFinder.Mode.OFF;
+			c.holidayPreview = "";
+			c.holidayRegion = "auto";
 			setup.accept(c);
 			mod.settingsChanged();
 
