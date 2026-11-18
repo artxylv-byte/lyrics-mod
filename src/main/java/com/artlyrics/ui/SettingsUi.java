@@ -119,6 +119,7 @@ public final class SettingsUi {
 	// Frame
 
 	public void render(Canvas c, int mouseX, int mouseY, long nowNanos) {
+		Theme.apply(host.config().menuTheme);
 		this.mouseX = mouseX;
 		this.mouseY = mouseY;
 		if (!started) {
@@ -155,7 +156,7 @@ public final class SettingsUi {
 		Draw.roundRect(c, px, py, px + pw, py + ph, 8, Theme.PANEL);
 		Draw.roundRectLeft(c, px, py, px + side, py + ph, 8, Theme.SIDEBAR);
 		c.fill(px + side, py, px + side + 1, py + ph, Theme.LINE);
-		Draw.roundOutline(c, px, py, px + pw, py + ph, 8, 0x18FFFFFF);
+		Draw.roundOutline(c, px, py, px + pw, py + ph, 8, Draw.withAlpha(Theme.HIGHLIGHT, 0.09f));
 		drawSidebar(c);
 		drawHeader(c);
 
@@ -210,7 +211,7 @@ public final class SettingsUi {
 			boolean hovered = inside(sx0, iy, sx1, iy + NAV_H);
 			float h = hover("nav:" + p, hovered && p != page);
 			if (h > 0.01f) {
-				Draw.roundRect(c, sx0, iy, sx1, iy + NAV_H, 4, Draw.withAlpha(0xFFFFFF, 0.05f * h));
+				Draw.roundRect(c, sx0, iy, sx1, iy + NAV_H, 4, Draw.withAlpha(Theme.HIGHLIGHT, 0.05f * h));
 			}
 			int color = p == page ? Theme.TEXT : Draw.lerpArgb(Theme.MUTED, Theme.TEXT, h);
 			c.icon(p.icon, sx0 + (compact ? (sx1 - sx0 - 10) / 2 : 6), iy + 4, p == page ? accent : color);
@@ -260,7 +261,7 @@ public final class SettingsUi {
 		int by = py + 8;
 		float h = hover("close", inside(bx - 2, by - 2, bx + 12, by + 12));
 		if (h > 0.01f) {
-			Draw.roundRect(c, bx - 2, by - 2, bx + 12, by + 12, 3, Draw.withAlpha(0xFFFFFF, 0.08f * h));
+			Draw.roundRect(c, bx - 2, by - 2, bx + 12, by + 12, 3, Draw.withAlpha(Theme.HIGHLIGHT, 0.08f * h));
 		}
 		c.icon("close", bx, by, Draw.lerpArgb(Theme.MUTED, Theme.TEXT, h));
 		hits.add(new Hit(bx - 2, by - 2, bx + 12, by + 12, host::close, null, 0, 0));
@@ -276,7 +277,7 @@ public final class SettingsUi {
 		int barH = Math.max(16, Math.round(trackH * trackH / (float) contentHeight));
 		int barY = contentTop + Math.round((trackH - barH) * (scroll / maxScroll));
 		int x = cx + cw + 6;
-		Draw.roundRect(c, x, barY, x + 3, barY + barH, 1, 0x40FFFFFF);
+		Draw.roundRect(c, x, barY, x + 3, barY + barH, 1, Draw.withAlpha(Theme.HIGHLIGHT, 0.25f));
 	}
 
 	// ------------------------------------------------------------------------------------------------------------
@@ -327,7 +328,7 @@ public final class SettingsUi {
 			c.text(total, null, cx + cw - 10 - c.textWidth(total, null), barY, Theme.MUTED, false);
 			int b0 = ax + c.textWidth(elapsed, null) + 6;
 			int b1 = cx + cw - 16 - c.textWidth(total, null);
-			Draw.roundRect(c, b0, barY + 3, b1, barY + 6, 1, 0x30FFFFFF);
+			Draw.roundRect(c, b0, barY + 3, b1, barY + 6, 1, Draw.withAlpha(Theme.HIGHLIGHT, 0.19f));
 			if (track.durationMs() > 0) {
 				int filled = b0 + Math.round((b1 - b0) * Math.min(1f, pos / (float) track.durationMs()));
 				Draw.gradientH(c, b0, barY + 3, Math.max(b0 + 1, filled), barY + 6, 0xFF000000 | palette.from(), 0xFF000000 | palette.to());
@@ -414,6 +415,13 @@ public final class SettingsUi {
 		ArtlyricsConfig config = host.config();
 		double seconds = now / 1e9;
 
+		// The menu's own colors.
+		y = section(c, "artlyrics.ui.section.menu", y);
+		ArtlyricsConfig.MenuTheme[] menuThemes = ArtlyricsConfig.MenuTheme.values();
+		y = rowSelector(c, "menuTheme", "artlyrics.option.menu_theme", y, config.menuTheme.ordinal(),
+				labels(menuThemes, ArtlyricsConfig.MenuTheme::translationKey), i -> config.menuTheme = menuThemes[i]);
+		y += 4;
+
 		// Looks: one click sets font, palette, effect and animation.
 		y = section(c, "artlyrics.ui.section.looks", y);
 		int cols = cw >= 300 ? 3 : 2;
@@ -439,7 +447,7 @@ public final class SettingsUi {
 			c.push();
 			c.translate(tx + (tileW - nw * 1.25f) / 2f, ty + 6);
 			c.scale(1.25f);
-			c.text(name, look.font, 0, 0, 0xFF000000 | p.colorAt(0.2f, seconds), false);
+			c.text(name, look.font, 0, 0, Theme.readable(0xFF000000 | p.colorAt(0.2f, seconds)), false);
 			c.pop();
 			String sub = host.tr(look.animation.translationKey());
 			c.text(sub, UI, tx + (tileW - c.textWidth(sub, UI)) / 2, ty + 19, selected ? tint : Theme.MUTED, false);
@@ -500,7 +508,7 @@ public final class SettingsUi {
 			Draw.roundRect(c, tx, ty, tx + pwid, ty + phgt, 5, Draw.lerpArgb(Theme.CARD, Theme.CARD_HOVER, h));
 			int sx0 = tx + 4;
 			int sx1 = tx + pwid - 4;
-			if (style == LyricStyle.AURORA) {
+			if (style == LyricStyle.AURORA || style == LyricStyle.RAINBOW) {
 				for (int s = 0; s < 4; s++) {
 					int segX0 = sx0 + (sx1 - sx0) * s / 4;
 					int segX1 = sx0 + (sx1 - sx0) * (s + 1) / 4;
@@ -529,6 +537,11 @@ public final class SettingsUi {
 		y = section(c, "artlyrics.ui.section.text", y);
 		y = rowSelector(c, "effect", "artlyrics.option.effect", y, config.textEffect.ordinal(),
 				labels(ArtlyricsConfig.TextEffect.values(), e -> e.translationKey()), i -> config.textEffect = ArtlyricsConfig.TextEffect.values()[i]);
+		if (config.textEffect != ArtlyricsConfig.TextEffect.NONE) {
+			ArtlyricsConfig.EffectColor[] effectColors = ArtlyricsConfig.EffectColor.values();
+			y = rowSelector(c, "effectColor", "artlyrics.option.effect_color", y, config.effectColor.ordinal(),
+					labels(effectColors, ArtlyricsConfig.EffectColor::translationKey), i -> config.effectColor = effectColors[i]);
+		}
 		if (config.textEffect == ArtlyricsConfig.TextEffect.GLOW) {
 			y = rowSlider(c, "glow", "artlyrics.option.glow", y, config.glowStrength, 0f, 1f,
 					Math.round(config.glowStrength * 100) + "%", v -> config.glowStrength = round(v, 0.05f));
@@ -656,7 +669,7 @@ public final class SettingsUi {
 		if (track != null) {
 			int h = cardPreview.measure(c, previewHost, now, true);
 			int areaH = h + 16;
-			Draw.roundRect(c, cx, y, cx + cw, y + areaH, 6, 0xFF0A0910);
+			Draw.roundRect(c, cx, y, cx + cw, y + areaH, 6, Theme.PREVIEW_BG);
 			float s = Math.min(1f, (cw - 16) / (float) SongCardView.WIDTH);
 			c.push();
 			c.translate(cx + (cw - SongCardView.WIDTH * s) / 2f, y + 8);
@@ -824,7 +837,7 @@ public final class SettingsUi {
 		rowH = ROW_H;
 		float hv = hover("row:" + id, insideContent(cx, y, cx + cw, y + rowH - 2));
 		if (hv > 0.01f) {
-			Draw.roundRect(c, cx, y, cx + cw, y + rowH - 2, 4, Draw.withAlpha(0xFFFFFF, 0.04f * hv));
+			Draw.roundRect(c, cx, y, cx + cw, y + rowH - 2, 4, Draw.withAlpha(Theme.HIGHLIGHT, 0.04f * hv));
 		}
 		int textMax = cw - bw - 22;
 		c.text(Draw.ellipsize(c, title, UI, textMax), UI, cx + 8, y + 3, Theme.TEXT, false);
@@ -938,7 +951,7 @@ public final class SettingsUi {
 		boolean hovered = insideContent(cx, y, cx + cw, y + rowH - 2);
 		float h = hover("row:" + id, hovered);
 		if (h > 0.01f) {
-			Draw.roundRect(c, cx, y, cx + cw, y + rowH - 2, 4, Draw.withAlpha(0xFFFFFF, 0.04f * h));
+			Draw.roundRect(c, cx, y, cx + cw, y + rowH - 2, 4, Draw.withAlpha(Theme.HIGHLIGHT, 0.04f * h));
 		}
 		int textMax = cw - controlWidth - 22;
 		c.text(Draw.ellipsize(c, host.tr(labelKey), UI, textMax), UI, cx + 8, hasDesc ? y + 3 : y + 5, Theme.TEXT, false);

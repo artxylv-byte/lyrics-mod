@@ -12,15 +12,19 @@ lyrics drawn in the world around you.
 - **Skywriting**: each line is written across the sky where you were looking when it started, then slowly
   drifts upward. It's part of the world, so hills and trees can get in the way.
 - **Hover**: lines hang just above your crosshair and trail a little behind as you turn. Nothing covers them.
-- **Smooth text**: eight bundled fonts (Soft, Bold, Script, Fancy, Handwritten, Deco, Bubbly, Typewriter) rendered
-  at high resolution, plus Minecraft's own fonts, with a soft glow, shadow or outline.
+- **Smooth text**: sixteen bundled fonts (Soft, Bold, Script, Fancy, Handwritten, Deco, Bubbly, Typewriter,
+  Rounded, Brush, Retro, Arcade, Poster, Classic, Elegant, Notes) rendered at high resolution, plus Minecraft's own
+  fonts, with a soft glow, shadow or outline in an automatic color, white, black or the palette's accent.
 - **Animations**: *Fade*, *Rise* (letters float up one by one), *Bloom*, *Typewriter*, *Sweep* (a karaoke fill that
   glides through each word as it's sung) and *Spotlight*,
   with adjustable speed, how long lines linger and how they leave (float away, fade or shrink).
 - **Looks**: one-click combinations of font, palette, effect and animation (Starlight, Petal, Neon, Campfire,
   Notebook, Tide, Postcard, Ballroom, Blocky).
-- **Palettes** named after Minecraft materials (Amethyst, Cherry, Ember, Prismarine, Honey, Moss, Quartz, the
-  shifting Aurora) or your own colors.
+- **Palettes** named after Minecraft materials (Amethyst, Cherry, Ember, Prismarine, Honey, Moss, Quartz, Redstone,
+  Lapis, Emerald, Diamond, Copper, Crimson, Warped, Sculk, End, Snow, Sunset), the shifting Aurora, a flowing
+  Rainbow, or your own colors.
+- **Menu themes**: Dark, Light, Midnight, Glass (see-through), Ocean, Forest and Sakura, for the settings and the
+  song card.
 - **Song card**: a small card with the song's cover picture, title, artist, progress and the current line, in the
   corner you pick, at the size and opacity you like. Animated covers (GIF) play on the card.
 - **Demo song**: a short built-in song so you can try every look without playing music.
@@ -144,7 +148,7 @@ screen, so turn on **Demo song** and watch while you adjust.
 | Now Playing | The current song, whether lyrics were found, the line being sung, quick settings |
 | Lyrics | Mode, animation, animation speed, exit style, how long lines linger, sync offset, this song's timing, whole line at once, next-line preview and its visibility |
 | Holidays | Holiday themes (seasons / always nearest / off), region, holiday colors, decorations, try a theme, what's on now and coming up |
-| Look | Looks, fonts, palettes (with a custom color editor), text effect, glow, size, opacity, line width, bold, italic, ALL CAPS |
+| Look | Menu theme, looks, fonts, palettes (with a custom color editor), text effect, glow, size, opacity, line width, bold, italic, ALL CAPS |
 | Placement | Skywriting height, distance, scatter, drift and arc; hover distance, height and how quickly it follows your view |
 | Song Card | Show or hide, position, size, background, artist, progress, next-line preview, album cover, big cover, animated covers, find covers online, covers folder, with a live preview |
 | Music | Preferred player, demo song, look lyrics up again, lyrics sources (your folder, LRCLIB, NetEase, lyrics without timing), detection status |
@@ -210,5 +214,7 @@ Lyrics are provided by [LRCLIB](https://lrclib.net). The demo song's lyrics were
 
 Bundled fonts, all under the [SIL Open Font License 1.1](https://openfontlicense.org) (license texts in
 `src/main/resources/assets/artlyrics/licenses/`): Varela Round (Soft), Righteous (Bold), Courgette (Script),
-Great Vibes (Fancy), Patrick Hand (Handwritten), Poiret One (Deco), Sniglet (Bubbly) and Courier Prime
-(Typewriter), from [Google Fonts](https://github.com/google/fonts).
+Great Vibes (Fancy), Patrick Hand (Handwritten), Poiret One (Deco), Sniglet (Bubbly), Courier Prime
+(Typewriter), Comfortaa (Rounded), Pacifico (Brush), Lobster (Retro), Press Start 2P (Arcade), Bebas Neue
+(Poster), Cinzel (Classic), Playfair Display (Elegant) and Caveat (Notes), from
+[Google Fonts](https://github.com/google/fonts).

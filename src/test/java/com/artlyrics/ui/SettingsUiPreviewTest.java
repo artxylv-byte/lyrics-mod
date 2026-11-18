@@ -46,6 +46,15 @@ class SettingsUiPreviewTest {
 		custom.config.style = LyricStyle.CUSTOM;
 		render(custom, SettingsUi.Page.LOOK, 260, "page-3-look-scrolled", W, H);
 		render(custom, SettingsUi.Page.LOOK, 600, "page-3-look-bottom", W, H);
+		// Light and glass menu themes.
+		FakeHost light = new FakeHost();
+		light.config.menuTheme = com.artlyrics.config.ArtlyricsConfig.MenuTheme.LIGHT;
+		render(light, SettingsUi.Page.LOOK, 0, "theme-light-look", W, H);
+		FakeHost sakura = new FakeHost();
+		sakura.config.menuTheme = com.artlyrics.config.ArtlyricsConfig.MenuTheme.SAKURA;
+		render(sakura, SettingsUi.Page.NOW_PLAYING, 0, "theme-sakura-now-playing", W, H);
+		render(new FakeHost(), SettingsUi.Page.LOOK, 330, "page-3-look-fonts", W, H);
+		com.artlyrics.ui.Theme.apply(com.artlyrics.config.ArtlyricsConfig.MenuTheme.DARK);
 		// The Music page scrolled to the lyrics sources and updates.
 		render(new FakeHost(), SettingsUi.Page.MUSIC, 600, "page-7-music-bottom", W, H);
 		// Small screens (GUI scale 4 on a 1366x768 display) get the compact sidebar.

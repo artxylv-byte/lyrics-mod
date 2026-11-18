@@ -105,8 +105,17 @@ public class ArtlyricsScreenshotTest implements FabricClientGameTest {
 				c.holidayRegion = "KR";
 				c.holidayPreview = "LUNAR_NEW_YEAR";
 			});
+			shot(context, "08h-retro-font-rainbow-hover", 21_000, 4f, c -> {
+				c.apply(Look.STARLIGHT);
+				c.font = ArtlyricsConfig.TextFont.RETRO;
+				c.style = com.artlyrics.config.LyricStyle.RAINBOW;
+				c.displayMode = ArtlyricsConfig.DisplayMode.HOVER;
+				c.animation = ArtlyricsConfig.Animation.SWEEP;
+				c.effectColor = ArtlyricsConfig.EffectColor.WHITE;
+			});
 			context.runOnClient(client -> {
 				ArtlyricsConfig c = Artlyrics.get().config();
+				c.effectColor = ArtlyricsConfig.EffectColor.AUTO;
 				c.holidayPreview = "NATIONAL";
 				c.holidayRegion = "LV";
 				Artlyrics.get().settingsChanged();
@@ -123,6 +132,22 @@ public class ArtlyricsScreenshotTest implements FabricClientGameTest {
 				context.waitTicks(10);
 				context.takeScreenshot("09-settings-page-" + (page + 1));
 			}
+			// The light menu theme.
+			context.runOnClient(client -> {
+				Artlyrics.get().config().menuTheme = ArtlyricsConfig.MenuTheme.LIGHT;
+				Artlyrics.get().config().holidayPreview = "";
+				Artlyrics.get().settingsChanged();
+			});
+			for (int page : new int[] {0, 2}) {
+				context.runOnClient(client -> {
+					if (client.screen instanceof ArtlyricsScreen screen) {
+						screen.showPage(page);
+					}
+				});
+				context.waitTicks(10);
+				context.takeScreenshot("10-light-theme-page-" + (page + 1));
+			}
+			context.runOnClient(client -> Artlyrics.get().config().menuTheme = ArtlyricsConfig.MenuTheme.DARK);
 			context.setScreen(() -> null);
 		}
 	}

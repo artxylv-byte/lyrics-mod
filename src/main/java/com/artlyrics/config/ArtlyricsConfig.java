@@ -85,7 +85,15 @@ public final class ArtlyricsConfig {
 		HANDWRITTEN("handwritten"),
 		DECO("deco"),
 		BUBBLY("bubbly"),
-		TYPEWRITER("typewriter");
+		TYPEWRITER("typewriter"),
+		ROUNDED("rounded"),
+		BRUSH("brush"),
+		RETRO("retro"),
+		ARCADE("arcade"),
+		POSTER("poster"),
+		CLASSIC("classic"),
+		ELEGANT("elegant"),
+		NOTES("notes");
 
 		/** Name of the bundled font files under {@code assets/artlyrics/font}, or null for Minecraft fonts. */
 		public final String bundled;
@@ -189,6 +197,29 @@ public final class ArtlyricsConfig {
 	/** When a song only has lyrics without timestamps, spread them over the song instead of showing nothing. */
 	public boolean estimateUnsynced = true;
 
+	// --- Menu -------------------------------------------------------------------------------------------------
+	/** Colors of this settings menu and the song card. */
+	public enum MenuTheme {
+		DARK, LIGHT, MIDNIGHT, GLASS, OCEAN, FOREST, SAKURA;
+
+		public String translationKey() {
+			return "artlyrics.menu_theme." + name().toLowerCase(Locale.ROOT);
+		}
+	}
+
+	/** Color of the glow, outline or shadow around the lyrics. */
+	public enum EffectColor {
+		/** A lighter (glow) or darker (outline, shadow) version of each word's color. */
+		AUTO, WHITE, BLACK, ACCENT;
+
+		public String translationKey() {
+			return "artlyrics.effect_color." + name().toLowerCase(Locale.ROOT);
+		}
+	}
+
+	public MenuTheme menuTheme = MenuTheme.DARK;
+	public EffectColor effectColor = EffectColor.AUTO;
+
 	// --- Updates ------------------------------------------------------------------------------------------
 	public enum UpdateMode {
 		/** Download new versions by itself; they're used from the next start. */
@@ -274,6 +305,8 @@ public final class ArtlyricsConfig {
 		if (preferredPlayer == null) preferredPlayer = d.preferredPlayer;
 		if (holidays == null) holidays = d.holidays;
 		if (updates == null) updates = d.updates;
+		if (menuTheme == null) menuTheme = d.menuTheme;
+		if (effectColor == null) effectColor = d.effectColor;
 		if (updateRepository == null || !updateRepository.matches("[\\w.-]+/[\\w.-]+")) updateRepository = d.updateRepository;
 		if (updateBranches == null || updateBranches.isEmpty()) updateBranches = d.updateBranches;
 		updateBranches.removeIf(b -> b == null || b.isBlank());

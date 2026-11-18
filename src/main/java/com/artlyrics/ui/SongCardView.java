@@ -49,6 +49,8 @@ public final class SongCardView {
 
 	// Content measured for the frame being drawn.
 	private List<List<Piece>> rows = List.of();
+	/** The rows of the line before, fading out while the new one fades in. */
+	private List<List<Piece>> previousRows = List.of();
 	private @Nullable String status;
 
 	private record Piece(String text, int width, int color) {
@@ -125,8 +127,9 @@ public final class SongCardView {
 		Palette palette = config.palette();
 		int accent = Theme.accent(palette.from());
 
-		Draw.roundRect(c, x, y, x + width, y + height, 5, Draw.withAlpha(0x14111C, config.cardOpacity));
-		Draw.roundOutline(c, x, y, x + width, y + height, 5, Draw.withAlpha(0xFFFFFF, 0.07f));
+		Theme.apply(config.menuTheme);
+		Draw.roundRect(c, x, y, x + width, y + height, 5, Draw.withAlpha(Theme.CARD_BG, config.cardOpacity));
+		Draw.roundOutline(c, x, y, x + width, y + height, 5, Draw.withAlpha(Theme.HIGHLIGHT, 0.07f));
 		HolidayFinder.Active holiday = config.holidayDecorations ? host.holiday() : null;
 		if (holiday != null) {
 			drawDecorations(c, holiday, x, y, width, height, now);
@@ -232,7 +235,7 @@ public final class SongCardView {
 		int bx0 = x + left;
 		int bx1 = x + width - right;
 		int by = y + 3;
-		Draw.roundRect(c, bx0, by, bx1, by + 3, 1, 0x30FFFFFF);
+		Draw.roundRect(c, bx0, by, bx1, by + 3, 1, Draw.withAlpha(Theme.HIGHLIGHT, 0.19f));
 		if (track.durationMs() > 0 && bx1 > bx0) {
 			float p = Math.min(1f, positionMs / (float) track.durationMs());
 			int filled = bx0 + Math.round((bx1 - bx0) * p);
@@ -242,7 +245,7 @@ public final class SongCardView {
 	}
 
 	private void drawLyrics(Canvas c, int x, int y, int width, TextFont font, long now) {
-		float fade = Easing.inOutSine((now - lineChangedNanos) / 220_000_000f);
+		float fade = Easing.inOutSine((now - lineChangedNanos) / 320_000_000f);
 		float alpha = c.alpha();
 		if (rows.isEmpty()) {
 			if (status != null && shownRows > 0.05f) {
@@ -252,7 +255,21 @@ public final class SongCardView {
 			}
 			return;
 		}
-		int ry = y + 2;
+		if (fade < 1f && !previousRows.isEmpty()) {
+			// The old line drifts up and fades as the new one comes in.
+			int py = y + 2 - Math.round(4f * fade);
+			for (int r = 0; r < previousRows.size() && r < MAX_LYRIC_ROWS; r++) {
+				c.setAlpha(alpha * (1f - fade) * Easing.clamp01(shownRows - r));
+				int px = x;
+				for (Piece piece : previousRows.get(r)) {
+					c.text(piece.text, font, px, py, piece.color, false);
+					px += piece.width;
+				}
+				py += ROW;
+			}
+			c.setAlpha(alpha);
+		}
+		int ry = y + 2 + Math.round(4f * (1f - fade));
 		for (int r = 0; r < rows.size(); r++) {
 			// Rows that don't fit yet (the card is still growing) fade in as it does.
 			float fit = Easing.clamp01(shownRows - r);
@@ -295,6 +312,7 @@ public final class SongCardView {
 		if (key != lineKey) {
 			lineKey = key;
 			lineChangedNanos = now;
+			previousRows = rows;
 		}
 		if (line == null) {
 			rows = List.of();
@@ -321,9 +339,9 @@ public final class SongCardView {
 			if (!live) {
 				color = Theme.FAINT;
 			} else if (i == active && w.isActiveAt(timeMs)) {
-				color = 0xFF000000 | palette.accent();
+				color = Theme.readable(0xFF000000 | palette.accent());
 			} else if (timeMs >= w.startMs()) {
-				color = 0xFF000000 | palette.colorAt(n > 1 ? i / (float) (n - 1) : 0.5f, seconds);
+				color = Theme.readable(0xFF000000 | palette.colorAt(n > 1 ? i / (float) (n - 1) : 0.5f, seconds));
 			} else {
 				color = Theme.FAINT;
 			}

@@ -58,6 +58,8 @@ public final class SkyLyricsRenderer {
 	private final List<ShownLine> shown = new ArrayList<>();
 	private float hoverYaw;
 	private float hoverElev;
+	private float hoverYawVel;
+	private float hoverElevVel;
 	private boolean hoverInitialized;
 	private long lastFrameNanos;
 	private boolean hasFrame;
@@ -98,6 +100,8 @@ public final class SkyLyricsRenderer {
 		float bendPx;
 		ArtlyricsConfig.TextEffect effect;
 		float glow;
+		ArtlyricsConfig.EffectColor effectColor;
+		int accentRgb;
 		PoseStack poseStack;
 		MultiBufferSource buffers;
 		Font font;
@@ -158,9 +162,28 @@ public final class SkyLyricsRenderer {
 			hoverInitialized = true;
 			return;
 		}
-		float k = 1f - (float) Math.exp(-dt * config.followSpeed);
-		hoverYaw += Mth.wrapDegrees(targetYaw - hoverYaw) * k;
-		hoverElev += (targetElev - hoverElev) * k;
+		if (Math.abs(Mth.wrapDegrees(targetYaw - hoverYaw)) > 150f) {
+			// Turned right around (or respawned): jump instead of sweeping across the screen.
+			hoverYaw = targetYaw;
+			hoverElev = targetElev;
+			hoverYawVel = 0;
+			hoverElevVel = 0;
+			return;
+		}
+		// A critically damped spring: the text starts moving gently, glides, and settles without overshooting or
+		// the small jerks a plain "move part of the way each frame" gives at uneven frame times.
+		float omega = config.followSpeed * 1.6f;
+		float remaining = dt;
+		while (remaining > 1e-5f) {
+			float h = Math.min(remaining, 1f / 240f);
+			remaining -= h;
+			float dy = Mth.wrapDegrees(targetYaw - hoverYaw);
+			hoverYawVel += (omega * omega * dy - 2f * omega * hoverYawVel) * h;
+			hoverYaw += hoverYawVel * h;
+			float de = targetElev - hoverElev;
+			hoverElevVel += (omega * omega * de - 2f * omega * hoverElevVel) * h;
+			hoverElev += hoverElevVel * h;
+		}
 	}
 
 	private void updateShownLines(Artlyrics mod, ArtlyricsConfig config, Camera camera, long timeMs, long now) {
@@ -255,6 +278,11 @@ public final class SkyLyricsRenderer {
 		} else {
 			lift = sky ? 0f : gone * heightDeg; // hover lines share one spot, so they always make room
 		}
+		if (!sky && !shownLine.leaving()) {
+			// A new hover line rises into place from just below, like lyrics scrolling up.
+			float enter = Easing.outCubic(Easing.clamp01((timeMs + LEAD_MS - line.startMs()) * speed / 420f));
+			lift -= (1f - enter) * heightDeg * 0.6f;
+		}
 
 		f.sky = sky;
 		f.yaw = sky ? shownLine.anchorYaw : hoverYaw;
@@ -263,12 +291,14 @@ public final class SkyLyricsRenderer {
 		f.bendPx = config.arc ? (sky ? 16f : 8f) * config.arcAmount : 0f;
 		f.effect = config.textEffect;
 		f.glow = config.glowStrength;
+		f.effectColor = config.effectColor;
 
 		List<LyricWord> words = line.words();
 		int n = words.size();
 		Palette palette = config.palette();
 		LineLayout layout = shownLine.layout;
 		float baseAlpha = exit * config.opacity;
+		f.accentRgb = palette.accent();
 
 		if (newest && config.nextLinePreview) {
 			drawPreview(shownLine, config, revision, f, timeMs, baseAlpha, palette, seconds);
@@ -509,7 +539,7 @@ public final class SkyLyricsRenderer {
 			case GLOW -> {
 				// A soft halo: faint copies in a lighter tint around the letters.
 				if (f.glow > 0.01f) {
-					int halo = Palette.lerpRgb(rgb, 0xFFFFFF, 0.3f);
+					int halo = effectRgb(f, rgb, true);
 					int inner = ARGB.color(alpha * f.glow * 0.16f, halo);
 					int outer = ARGB.color(alpha * f.glow * 0.09f, halo);
 					for (float[] o : RING_2) {
@@ -522,7 +552,7 @@ public final class SkyLyricsRenderer {
 				font.drawInBatch(text, x, y, argb, false, matrix, f.buffers, mode, 0, light);
 			}
 			case OUTLINE -> {
-				int outline = ARGB.color(alpha, Palette.lerpRgb(rgb, 0x000000, 0.78f));
+				int outline = ARGB.color(alpha, effectRgb(f, rgb, false));
 				if (f.sky) {
 					font.drawInBatch8xOutline(text.getVisualOrderText(), x, y, argb, outline, matrix, f.buffers, light);
 				} else {
@@ -533,15 +563,26 @@ public final class SkyLyricsRenderer {
 				}
 			}
 			case SHADOW -> {
-				if (f.sky) {
+				if (f.sky && f.effectColor == ArtlyricsConfig.EffectColor.AUTO) {
 					font.drawInBatch(text, x, y, argb, true, matrix, f.buffers, mode, 0, light);
 				} else {
-					font.drawInBatch(text, x + 1f, y + 1f, ARGB.color(alpha * 0.8f, ARGB.scaleRGB(argb, 0.25f) & 0xFFFFFF), false, behind, f.buffers, mode, 0, light);
+					int shadow = f.effectColor == ArtlyricsConfig.EffectColor.AUTO ? ARGB.scaleRGB(argb, 0.25f) & 0xFFFFFF : effectRgb(f, rgb, false);
+					font.drawInBatch(text, x + 1f, y + 1f, ARGB.color(alpha * 0.8f, shadow), false, behind, f.buffers, mode, 0, light);
 					font.drawInBatch(text, x, y, argb, false, matrix, f.buffers, mode, 0, light);
 				}
 			}
 			case NONE -> font.drawInBatch(text, x, y, argb, false, matrix, f.buffers, mode, 0, light);
 		}
+	}
+
+	/** Color of the glow ({@code light}) or the outline / shadow around a word of color {@code rgb}. */
+	private static int effectRgb(Frame f, int rgb, boolean light) {
+		return switch (f.effectColor) {
+			case WHITE -> 0xFFFFFF;
+			case BLACK -> 0x101014;
+			case ACCENT -> f.accentRgb;
+			default -> light ? Palette.lerpRgb(rgb, 0xFFFFFF, 0.3f) : Palette.lerpRgb(rgb, 0x000000, 0.78f);
+		};
 	}
 
 	private static float skyDistance(ArtlyricsConfig config) {

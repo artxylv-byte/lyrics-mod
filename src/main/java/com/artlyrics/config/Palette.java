@@ -4,9 +4,18 @@ package com.artlyrics.config;
  * Colors for one line of lyrics: words are tinted along a gradient from {@code from} to {@code to} across the
  * line, and the word being sung leans towards {@code accent}. {@code shifting} palettes slowly cycle their hues.
  */
-public record Palette(int from, int to, int accent, boolean shifting, int[] bands) {
+public record Palette(int from, int to, int accent, boolean shifting, int[] bands, boolean rainbow) {
 	public Palette(int from, int to, int accent, boolean shifting) {
-		this(from, to, accent, shifting, null);
+		this(from, to, accent, shifting, null, false);
+	}
+
+	public Palette(int from, int to, int accent, boolean shifting, int[] bands) {
+		this(from, to, accent, shifting, bands, false);
+	}
+
+	/** Every color of the rainbow, slowly flowing along the line. */
+	public static Palette flowingRainbow() {
+		return new Palette(0xFF6B6B, 0x6BB8FF, 0xFFFFFF, false, null, true);
 	}
 
 	/** Words take these colors in equal parts along the line, like the stripes of a flag. */
@@ -16,6 +25,10 @@ public record Palette(int from, int to, int accent, boolean shifting, int[] band
 
 	/** RGB color for a word at position {@code t} (0..1) along the line. */
 	public int colorAt(float t, double timeSeconds) {
+		if (rainbow) {
+			double h = timeSeconds * 0.06 + t * 0.55;
+			return hsv((float) (h - Math.floor(h)), 0.55f, 1.0f);
+		}
 		if (bands != null && bands.length > 0) {
 			int i = (int) (Math.max(0f, Math.min(1f, t)) * bands.length);
 			return bands[Math.min(bands.length - 1, i)];
