@@ -104,23 +104,29 @@ public class ArtlyricsScreenshotTest implements FabricClientGameTest {
 				c.cardCorner = ArtlyricsConfig.CardCorner.BOTTOM_RIGHT;
 			});
 
-			// Animated skies, looking up a little towards each sky's main object.
-			String[][] skies = {{"RINGED_PLANET", "160"}, {"SPIRAL_GALAXY", "200"}, {"AURORA", "195"}, {"SYNTH_SUNSET", "180"},
-					{"SAKURA_DUSK", "250"}, {"LIGHT_PILLARS", "0"}};
+			// Animated skies (drawn by the GPU), facing each sky's main object.
+			String[][] skies = {{"MILKY_WAY", "160", "26"}, {"RINGED_PLANET", "160", "34"}, {"SPIRAL_GALAXY", "205", "40"},
+					{"AURORA", "185", "24"}, {"ECLIPSE", "180", "32"}, {"BLACK_HOLE", "200", "32"}, {"NEBULA", "140", "36"},
+					{"TWIN_MOONS", "128", "28"}, {"MOON_HALO", "165", "30"}, {"METEOR_SHOWER", "40", "34"}, {"COMET", "244", "24"},
+					{"LIGHT_PILLARS", "10", "14"}, {"STAR_RIFT", "90", "35"}, {"SKY_LANTERNS", "300", "22"},
+					{"SAKURA_DUSK", "250", "18"}, {"GOLDEN_HOUR", "270", "10"}, {"SYNTH_SUNSET", "180", "14"}};
 			for (String[] skyShot : skies) {
 				com.artlyrics.sky.SkyTheme theme = com.artlyrics.sky.SkyTheme.valueOf(skyShot[0]);
 				float yaw = Float.parseFloat(skyShot[1]);
-				shot(context, "07s-sky-" + skyShot[0].toLowerCase(java.util.Locale.ROOT), 4_200, -26f, c -> {
+				float pitch = -Math.max(6f, Float.parseFloat(skyShot[2]) - 12f);
+				shot(context, "07s-sky-" + skyShot[0].toLowerCase(java.util.Locale.ROOT), 4_200, pitch, c -> {
 					c.apply(Look.STARLIGHT);
 					c.sky = theme;
-				});
-				context.runOnClient(client -> {
-					client.player.setYRot(yaw);
-					client.player.yRotO = yaw;
-				});
-				context.waitTicks(3);
-				context.takeScreenshot("07s-sky-" + skyShot[0].toLowerCase(java.util.Locale.ROOT) + "-facing");
+					c.enabled = false;
+				}, yaw);
 			}
+			// Daytime with a night sky: it should meet the horizon smoothly.
+			world.getServer().runCommand("time set 6000");
+			shot(context, "07t-sky-aurora-daytime-horizon", 4_200, -8f, c -> {
+				c.apply(Look.STARLIGHT);
+				c.sky = com.artlyrics.sky.SkyTheme.AURORA;
+			}, 185f);
+			world.getServer().runCommand("time set 18000");
 
 			// Holiday themes: Latvia's flag day, Christmas in hover mode, Seollal with lanterns.
 			shot(context, "08e-holiday-latvia-flag-day", 4_200, -14f, c -> {
@@ -212,6 +218,10 @@ public class ArtlyricsScreenshotTest implements FabricClientGameTest {
 	}
 
 	private static void shot(ClientGameTestContext context, String name, long songMs, float pitch, Consumer<ArtlyricsConfig> setup) {
+		shot(context, name, songMs, pitch, setup, 0f);
+	}
+
+	private static void shot(ClientGameTestContext context, String name, long songMs, float pitch, Consumer<ArtlyricsConfig> setup, float yaw) {
 		context.runOnClient(client -> {
 			Artlyrics mod = Artlyrics.get();
 			ArtlyricsConfig c = mod.config();
@@ -229,8 +239,8 @@ public class ArtlyricsScreenshotTest implements FabricClientGameTest {
 			setup.accept(c);
 			mod.settingsChanged();
 
-			client.player.setYRot(0f);
-			client.player.yRotO = 0f;
+			client.player.setYRot(yaw);
+			client.player.yRotO = yaw;
 			client.player.setXRot(pitch);
 			client.player.xRotO = pitch;
 			mod.tracker().seekDemo(songMs, true);

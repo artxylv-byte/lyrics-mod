@@ -2,6 +2,7 @@ package com.artlyrics.render;
 
 import com.artlyrics.Artlyrics;
 import com.artlyrics.compat.Mc;
+import com.artlyrics.compat.SkyGpu;
 import com.artlyrics.config.ArtlyricsConfig;
 import com.artlyrics.sky.SkyTheme;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -15,41 +16,83 @@ import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
 /**
- * Paints the chosen animated sky: a color dome that fades into Minecraft's own sky near the horizon (so distant
- * land and fog still match), twinkling stars, and the sky's objects, which turn with the world like real ones.
- * Everything is drawn camera-relative, a little further away than the lyrics, so the lyrics stay in front.
+ * Paints the chosen animated sky. Normally the GPU draws it pixel by pixel ({@link SkyGpu}, right after
+ * Minecraft's own sky and before the terrain, so land, clouds and lyrics are in front of it). On computers where
+ * that shader can't run, a simpler version made of shapes is drawn instead: a color dome that fades into
+ * Minecraft's sky near the horizon, twinkling stars and the sky's pictures.
  */
 public final class SkyArtRenderer {
 	private static final float DEG = (float) (Math.PI / 180.0);
 	private static final int LIGHT = LightTexture.FULL_BRIGHT;
 	private static final String GLOW = "textures/sky/glow.png";
+	/** The animation clock wraps after an hour; the stars turn exactly once in that time, so it doesn't show. */
+	private static final double WRAP_SECONDS = 3600.0;
 
 	private float shown;
 	private long lastNanos;
+	private double time;
+	private boolean gpu;
 
-	public void render(PoseStack poseStack, MultiBufferSource buffers) {
-		Artlyrics mod = Artlyrics.get();
-		Minecraft mc = Minecraft.getInstance();
-		if (mod == null || mc.level == null) {
-			return;
-		}
-		ArtlyricsConfig config = mod.config();
+	/** Fades the sky in and out and advances its clock; returns how strongly to show it now (0 = not at all). */
+	private float update(Minecraft mc, ArtlyricsConfig config) {
 		long now = System.nanoTime();
 		float dt = lastNanos == 0 ? 0f : Math.min(0.25f, (now - lastNanos) / 1e9f);
 		lastNanos = now;
 		SkyTheme sky = config.sky;
 		float want = 0f;
-		if (sky != SkyTheme.NONE && mc.level.dimension() == Level.OVERWORLD) {
+		if (sky != SkyTheme.NONE && mc.level.dimension() == Level.OVERWORLD && !skyHidden(mc)) {
 			want = config.skyNightOnly ? SkyTheme.nightAmount(mc.level.getDayTime()) : 1f;
-			want *= 1f - 0.75f * mc.level.getRainLevel(1f);
+			want *= 1f - 0.8f * mc.level.getRainLevel(1f);
 		}
 		// Fade the whole sky in and out over about half a second instead of switching it.
 		shown += (want - shown) * Easing.approach(dt, 4f);
-		if (shown < 0.01f || sky == SkyTheme.NONE) {
+		time = (time + dt * config.skySpeed) % WRAP_SECONDS;
+		return sky == SkyTheme.NONE ? 0f : shown;
+	}
+
+	/** Under water or lava, blinded, or in powder snow you can't see the sky. */
+	private static boolean skyHidden(Minecraft mc) {
+		if (mc.gameRenderer.getMainCamera().getFluidInCamera() != net.minecraft.world.level.material.FogType.NONE) {
+			return true;
+		}
+		return mc.player != null && (mc.player.hasEffect(net.minecraft.world.effect.MobEffects.BLINDNESS)
+				|| mc.player.hasEffect(net.minecraft.world.effect.MobEffects.DARKNESS));
+	}
+
+	/** Draws the sky with the GPU; called after Minecraft's sky, before the terrain. */
+	public void renderSkyStage() {
+		Artlyrics mod = Artlyrics.get();
+		Minecraft mc = Minecraft.getInstance();
+		if (mod == null || mc.level == null) {
+			return;
+		}
+		gpu = SkyGpu.worldAvailable();
+		if (!gpu) {
+			return;
+		}
+		ArtlyricsConfig config = mod.config();
+		float shown = update(mc, config);
+		if (shown < 0.005f) {
+			return;
+		}
+		float daylight = 1f - SkyTheme.nightAmount(mc.level.getDayTime());
+		SkyGpu.drawWorld((float) time, config.sky.ordinal(), shown * config.skyIntensity, config.skyStars, daylight, config.skyDetail.ordinal());
+	}
+
+	/** The simpler sky for computers without the shader; called with the lyrics. */
+	public void render(PoseStack poseStack, MultiBufferSource buffers) {
+		Artlyrics mod = Artlyrics.get();
+		Minecraft mc = Minecraft.getInstance();
+		if (mod == null || mc.level == null || gpu) {
+			return;
+		}
+		ArtlyricsConfig config = mod.config();
+		SkyTheme sky = config.sky;
+		if (update(mc, config) < 0.01f) {
 			return;
 		}
 		float vis = shown * config.skyIntensity;
-		double t = now / 1e9 * config.skySpeed;
+		double t = time;
 		float dist = distance(mc);
 		Matrix4f base = poseStack.last().pose();
 

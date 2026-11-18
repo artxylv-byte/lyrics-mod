@@ -29,7 +29,8 @@ lyrics drawn in the world around you.
   corner you pick, at the size and opacity you like. Animated covers (GIF) play on the card. The **Player** style
   makes it bigger, with a record that slides out from behind the cover and spins, and bars that bounce along with
   the sung words.
-- **Skies**: eleven animated skies drawn above your world (see below), only at night if you like.
+- **Skies**: seventeen animated skies drawn by your graphics card (see below), with live previews, only at night
+  if you like.
 - **Demo song**: a short built-in song so you can try every look without playing music.
 
 ## Where lyrics come from
@@ -133,25 +134,40 @@ and Holi.
 
 ## Skies
 
-The Skies page changes what the sky looks like, with a moving preview of each:
+The Skies page changes what the sky looks like. Every sky is drawn by your graphics card, pixel by pixel, right
+after Minecraft's own sky, so hills, trees, clouds and the lyrics stay in front of it. Each tile on the page is a
+live preview, drawn the same way.
 
 | Sky | What's in it |
 | --- | --- |
 | Minecraft | the normal sky |
-| Ringed Planet | a big planet with rings and a small moon among the stars |
-| Spiral Galaxy | a turning galaxy and a faint glow of dust |
-| Aurora | green and violet curtains of light that wave across the north |
-| Eclipse | a dark sun in a glowing corona |
-| Light Pillars | soft beams of light rising from the horizon all around |
-| Meteor Shower | shooting stars every few seconds |
-| Nebula | a colorful cloud of gas glowing among the stars |
-| Twin Moons | two moons, a big one and a small one |
-| Sakura Dusk | a pink evening sky with petals drifting down |
+| Milky Way | the band of our galaxy rising from the horizon, with dark dust lanes and thousands of stars |
+| Ringed Planet | a banded gas giant lit from the side, with rings that cast a shadow and a small moon |
+| Spiral Galaxy | a tilted spiral galaxy turning slowly: blue arms, pink star-forming knots, a golden core |
+| Aurora | green and violet curtains of light rippling across the northern sky |
+| Eclipse | the sun hidden by the moon: streaming corona, red prominences, the diamond ring and a sunset all around the horizon |
+| Black Hole | a glowing disk around a black hole that bends the stars and the disk's far side around itself |
+| Nebula | a colorful cloud of glowing gas and dark dust with young stars inside |
+| Twin Moons | a big moon and a small rose-colored one, with thin clouds drifting past |
+| Moon Halo | the full moon with a ring of ice-crystal light, moon dogs either side and glittering frost |
+| Meteor Shower | shooting stars streaking out from one point, now and then a green fireball |
+| Great Comet | a bright comet with a curved dust tail and a straight blue ion tail |
+| Light Pillars | columns of light rising from the horizon all around |
+| Star Rift | a crack across the sky with another starfield glowing through it |
+| Sky Lanterns | warm paper lanterns drifting up into the night |
+| Sakura Dusk | a pink evening sky with soft clouds and petals falling |
+| Golden Hour | a low sun with rays, glowing clouds and a warm sky |
 | Synth Sunset | a striped neon sun sinking into a purple sky |
 
-**Only at night** fades the sky in at dusk and away at dawn. **Strength** sets how much it covers the normal sky,
-**Movement** how fast things move (0 keeps them still) and **Stars** turns the stars on or off. Skies show in the
-Overworld only and fade in rain. All the sky pictures were drawn for Artlyrics.
+- **Only at night** fades the sky in at dusk and away at dawn.
+- **Strength** sets how much it covers the normal sky.
+- **Movement** sets how fast things move (0 keeps them still).
+- **Stars** turns the stars on or off.
+- **Detail** (Low, Medium, High) trades detail for speed on slower graphics cards.
+
+Skies show in the Overworld only, fade in rain, and hide under water or when blinded. Near the horizon they blend
+into Minecraft's own sky and fog, so far land fits in day or night. If a graphics card can't run the sky shader, a
+simpler version is drawn instead. All the skies were made for Artlyrics.
 
 ## Cover pictures
 
@@ -191,7 +207,7 @@ screen, so turn on **Demo song** and watch while you adjust.
 | Now Playing | The current song and cover, whether lyrics were found, the line being sung, media controls, quick settings, detection status |
 | Lyrics | Mode, animation, animation speed, exit style, how long lines linger, sync offset, this song's timing, whole line at once, next-line preview and its visibility |
 | Holidays | Holiday themes (seasons / always nearest / off), region, holiday colors, decorations, try a theme, what's on now and coming up |
-| Skies | Animated skies with live previews, only at night, strength, movement, stars |
+| Skies | Seventeen GPU-drawn skies with live previews, only at night, strength, movement, stars, detail |
 | Look | Menu theme, looks, fonts, palettes (with a custom color editor), text effect, glow, size, opacity, line width, bold, italic, ALL CAPS |
 | Placement | Skywriting height, distance, scatter, drift and arc; hover distance, height and how quickly it follows your view |
 | Song Card | Show or hide, style (Compact or Player, with the record and moving bars), position, size, background, artist, progress, next-line preview, album cover, big cover, animated covers, find covers online, covers folder, with a live preview |
@@ -238,7 +254,7 @@ src/main/java/com/artlyrics/
   nowplaying/              detecting the playing song (Windows / macOS / Linux / demo) and a smoothed clock
   lyrics/                  LRCLIB client, LRC and word-synced parsers, timing estimation, lookup cache
   render/                  Skywriting / Hover renderer, skies, fonts, song card HUD
-  sky/                     the sky themes
+  sky/                     the sky themes (drawn by assets/artlyrics/shaders/include/sky.glsl)
   ui/                      settings screen and song card, drawn through the Canvas interface
   screen/                  Minecraft screen that hosts the settings UI
   config/                  settings, palettes and looks

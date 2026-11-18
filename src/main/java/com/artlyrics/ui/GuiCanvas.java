@@ -111,6 +111,15 @@ public final class GuiCanvas implements Canvas {
 	}
 
 	@Override
+	public boolean sky(int skyId, int x, int y, int w, int h) {
+		if (!com.artlyrics.compat.SkyGpu.guiAvailable()) {
+			return false;
+		}
+		com.artlyrics.compat.SkyGpu.drawPreview(graphics, skyId, System.nanoTime() / 1e9, x, y, w, h, alpha);
+		return true;
+	}
+
+	@Override
 	public void clip(int x0, int y0, int x1, int y1) {
 		graphics.enableScissor(x0, y0, x1, y1);
 	}

@@ -30,6 +30,11 @@ public final class Mc {
 		WorldRenderEvents.AFTER_ENTITIES.register(context -> hook.render(context.matrices(), context.consumers()));
 	}
 
+	/** Called in the main world pass after Minecraft's sky, before any terrain is drawn. */
+	public static void onSkyStage(Runnable hook) {
+		WorldRenderEvents.START_MAIN.register(context -> hook.run());
+	}
+
 	public static void addHudElementBeforeChat(String path, HudElement element) {
 		HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, Identifier.fromNamespaceAndPath(MOD_ID, path), element);
 	}

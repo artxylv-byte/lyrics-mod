@@ -905,7 +905,7 @@ public final class SettingsUi {
 			c.gradientV(cx, y, cx + cw, y + bh, 0xFF000000 | top, 0xFF000000 | bottom);
 			drawStars(c, cx, y, cx + cw, y + bh - 8, 28, seconds);
 		} else {
-			drawSkyPreview(c, sky, cx, y, cx + cw, y + bh, seconds, 0.84f);
+			skyArt(c, sky, cx, y, cx + cw, y + bh, seconds, 0.84f);
 		}
 		Draw.gradientH(c, cx, y, cx + cw * 2 / 3, y + bh, 0x99000000, 0x00000000);
 		int lx = cx + 12;
@@ -1008,26 +1008,34 @@ public final class SettingsUi {
 		int cols = cw >= 300 ? 3 : 2;
 		int gap = 6;
 		int tw = (cw - gap * (cols - 1)) / cols;
-		int th = 58;
+		int ph = Math.round(tw * 0.56f);
+		int th = ph + 18;
 		for (int i = 0; i < skies.length; i++) {
 			SkyTheme sky = skies[i];
 			int tx = cx + (i % cols) * (tw + gap);
 			int ty = y + (i / cols) * (th + gap);
 			boolean selected = config.sky == sky;
 			float h = hover("sky:" + sky, insideContent(tx, ty, tx + tw, ty + th));
-			Draw.roundRect(c, tx, ty, tx + tw, ty + th, 5, Draw.lerpArgb(Theme.CARD, Theme.CARD_HOVER, h));
-			drawSkyPreview(c, sky, tx + 3, ty + 3, tx + tw - 3, ty + 43, seconds, 0.5f);
+			int card = Draw.lerpArgb(Theme.CARD, Theme.CARD_HOVER, h);
+			Draw.roundRect(c, tx, ty, tx + tw, ty + th, 6, card);
+			skyArt(c, sky, tx + 3, ty + 3, tx + tw - 3, ty + 3 + ph, seconds, 0.5f);
+			Draw.roundCorners(c, tx + 3, ty + 3, tx + tw - 3, ty + 3 + ph, 4, card);
 			if (selected) {
-				Draw.roundOutline(c, tx, ty, tx + tw, ty + th, 5, accent);
+				Draw.roundOutline(c, tx, ty, tx + tw, ty + th, 6, accent);
+				Draw.roundOutline(c, tx + 1, ty + 1, tx + tw - 1, ty + th - 1, 5, Draw.withAlpha(accent & 0xFFFFFF, 0.45f));
+				Draw.circle(c, tx + tw - 11, ty + 11, 6f, accent);
+				c.icon("check", tx + tw - 16, ty + 6, 0xFFFFFFFF);
 			}
-			String name = Draw.ellipsize(c, host.tr(sky.translationKey()), UI, tw - 8);
-			c.text(name, UI, tx + 5, ty + 46, selected ? accent : Theme.TEXT, false);
+			String name = Draw.ellipsize(c, host.tr(sky.translationKey()), UI, tw - 10);
+			c.text(name, UI, tx + 6, ty + ph + 7, selected ? accent : Theme.TEXT, false);
 			contentHit(tx, ty, tx + tw, ty + th, () -> {
 				config.sky = sky;
 				host.settingsChanged();
 			});
 		}
-		y += ((skies.length + cols - 1) / cols) * (th + gap) + 2;
+		y += ((skies.length + cols - 1) / cols) * (th + gap);
+		c.text(Draw.ellipsize(c, host.tr("artlyrics.ui.sky_gpu"), UI, cw), UI, cx + 2, y, Theme.FAINT, false);
+		y += 14;
 
 		y = section(c, "artlyrics.ui.section.sky_options", y);
 		y = rowToggle(c, "skyNight", "artlyrics.option.sky_night", y, config.skyNightOnly, v -> config.skyNightOnly = v);
@@ -1035,7 +1043,16 @@ public final class SettingsUi {
 				Math.round(config.skyIntensity * 100) + "%", v -> config.skyIntensity = round(v, 0.05f));
 		y = rowSlider(c, "skySpeed", "artlyrics.option.sky_speed", y, config.skySpeed, 0f, 2f,
 				String.format(Locale.ROOT, "%.1f×", config.skySpeed), v -> config.skySpeed = round(v, 0.1f));
-		return rowToggle(c, "skyStars", "artlyrics.option.sky_stars", y, config.skyStars, v -> config.skyStars = v);
+		y = rowToggle(c, "skyStars", "artlyrics.option.sky_stars", y, config.skyStars, v -> config.skyStars = v);
+		return rowSelector(c, "skyDetail", "artlyrics.option.sky_detail", y, config.skyDetail.ordinal(),
+				labels(ArtlyricsConfig.SkyDetail.values(), k -> k.translationKey()), i -> config.skyDetail = ArtlyricsConfig.SkyDetail.values()[i]);
+	}
+
+	/** A sky picture: drawn live by the GPU where it can be, otherwise a simple drawing. */
+	private void skyArt(Canvas c, SkyTheme sky, int x0, int y0, int x1, int y1, double seconds, float focus) {
+		if (!c.sky(sky.ordinal(), x0, y0, x1 - x0, y1 - y0)) {
+			drawSkyPreview(c, sky, x0, y0, x1, y1, seconds, focus);
+		}
 	}
 
 	/** Twinkling dots scattered over an area. */

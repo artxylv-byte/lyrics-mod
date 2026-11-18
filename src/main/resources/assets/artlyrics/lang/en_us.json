@@ -353,5 +353,18 @@
   "artlyrics.option.card_vinyl": "Record",
   "artlyrics.option.card_vinyl.desc": "A record peeks out and spins while the song plays",
   "artlyrics.option.card_bars": "Moving bars",
-  "artlyrics.option.card_bars.desc": "Bars that bounce along with the sung words"
+  "artlyrics.option.card_bars.desc": "Bars that bounce along with the sung words",
+  "artlyrics.sky.milky_way": "Milky Way",
+  "artlyrics.sky.black_hole": "Black Hole",
+  "artlyrics.sky.moon_halo": "Moon Halo",
+  "artlyrics.sky.comet": "Great Comet",
+  "artlyrics.sky.star_rift": "Star Rift",
+  "artlyrics.sky.sky_lanterns": "Sky Lanterns",
+  "artlyrics.sky.golden_hour": "Golden Hour",
+  "artlyrics.ui.sky_gpu": "Live previews, drawn by your graphics card",
+  "artlyrics.option.sky_detail": "Detail",
+  "artlyrics.option.sky_detail.desc": "Lower it if the game slows down",
+  "artlyrics.sky_detail.low": "Low",
+  "artlyrics.sky_detail.medium": "Medium",
+  "artlyrics.sky_detail.high": "High"
 }

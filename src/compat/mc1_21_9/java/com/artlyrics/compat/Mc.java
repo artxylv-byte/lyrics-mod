@@ -35,6 +35,20 @@ public final class Mc {
 		worldHook = hook;
 	}
 
+	private static Runnable skyHook;
+
+	/** Called in the main world pass after Minecraft's sky, before any terrain is drawn (from {@code ChunkSectionsMixin}). */
+	public static void onSkyStage(Runnable hook) {
+		skyHook = hook;
+	}
+
+	/** Called by the mixin. */
+	public static void fireSkyStage() {
+		if (skyHook != null) {
+			skyHook.run();
+		}
+	}
+
 	/** Called by the mixin. */
 	public static void fireWorldRender(PoseStack poseStack, MultiBufferSource buffers) {
 		if (worldHook != null) {

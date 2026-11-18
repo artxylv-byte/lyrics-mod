@@ -57,6 +57,21 @@ public final class Draw {
 		c.fill(x1 - 1, y0 + r + 1, x1, y1 - r - 1, argb);
 	}
 
+	/** Covers the corners of a rectangle outside a rounded shape of radius {@code r} (to round a picture). */
+	public static void roundCorners(Canvas c, int x0, int y0, int x1, int y1, int r, int argb) {
+		r = Math.max(0, Math.min(r, Math.min((x1 - x0) / 2, (y1 - y0) / 2)));
+		for (int i = 0; i < r; i++) {
+			int inset = inset(r, i);
+			if (inset <= 0) {
+				continue;
+			}
+			c.fill(x0, y0 + i, x0 + inset, y0 + i + 1, argb);
+			c.fill(x1 - inset, y0 + i, x1, y0 + i + 1, argb);
+			c.fill(x0, y1 - i - 1, x0 + inset, y1 - i, argb);
+			c.fill(x1 - inset, y1 - i - 1, x1, y1 - i, argb);
+		}
+	}
+
 	/** A filled circle (approximated with rows). */
 	public static void circle(Canvas c, float cx, float cy, float radius, int argb) {
 		int r = Math.round(radius);

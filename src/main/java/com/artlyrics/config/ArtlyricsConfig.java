@@ -108,6 +108,15 @@ public final class ArtlyricsConfig {
 		}
 	}
 
+	/** How much work the sky shader does per pixel. */
+	public enum SkyDetail {
+		LOW, MEDIUM, HIGH;
+
+		public String translationKey() {
+			return "artlyrics.sky_detail." + name().toLowerCase(Locale.ROOT);
+		}
+	}
+
 	/** How the song card looks. */
 	public enum CardStyle {
 		/** A slim bar: small cover, title and the lyric line. */
@@ -246,7 +255,9 @@ public final class ArtlyricsConfig {
 	public com.artlyrics.sky.SkyTheme sky = com.artlyrics.sky.SkyTheme.NONE;
 	/** Show the sky only at night (it fades in at dusk). */
 	public boolean skyNightOnly = false;
-	public float skyIntensity = 0.9f;
+	public float skyIntensity = 1.0f;
+	/** How much detail the sky shader works out (more uses the graphics card harder). */
+	public SkyDetail skyDetail = SkyDetail.HIGH;
 	/** How fast the sky moves (0 = still). */
 	public float skySpeed = 1.0f;
 	public boolean skyStars = true;
@@ -340,6 +351,7 @@ public final class ArtlyricsConfig {
 		if (updates == null) updates = d.updates;
 		if (menuTheme == null) menuTheme = d.menuTheme;
 		if (sky == null) sky = d.sky;
+		if (skyDetail == null) skyDetail = d.skyDetail;
 		skyIntensity = clamp(skyIntensity, 0.2f, 1f, d.skyIntensity);
 		skySpeed = clamp(skySpeed, 0f, 2f, d.skySpeed);
 		if (effectColor == null) effectColor = d.effectColor;

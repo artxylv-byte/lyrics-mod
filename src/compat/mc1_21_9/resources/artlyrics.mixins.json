@@ -4,6 +4,7 @@
   "package": "com.artlyrics.compat.mixin",
   "compatibilityLevel": "JAVA_21",
   "client": [
+    "ChunkSectionsMixin",
     "LevelRendererMixin"
   ],
   "injectors": {

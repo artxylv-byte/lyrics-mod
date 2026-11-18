@@ -31,6 +31,14 @@ public interface Canvas {
 	 */
 	boolean cover(CoverImage image, long elapsedMs, int x, int y, int size);
 
+	/**
+	 * A live, animated preview of sky {@code skyId} (a {@code SkyTheme} ordinal) drawn by the GPU into the rectangle,
+	 * with hills along the bottom. Returns false where that isn't possible, so the caller draws its own.
+	 */
+	default boolean sky(int skyId, int x, int y, int w, int h) {
+		return false;
+	}
+
 	void push();
 
 	void translate(float x, float y);
