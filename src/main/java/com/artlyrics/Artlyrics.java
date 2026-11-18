@@ -21,7 +21,7 @@ import com.artlyrics.lyrics.LyricsManager;
 import com.artlyrics.nowplaying.NowPlaying;
 import com.artlyrics.nowplaying.PlaybackTracker;
 import com.artlyrics.ui.UiHost;
-import net.minecraft.client.resources.language.I18n;
+import net.minecraft.locale.Language;
 import org.jetbrains.annotations.Nullable;
 
 /** Holds the mod's long-lived pieces. Created once by {@link ArtlyricsClient}. */
@@ -320,7 +320,9 @@ public final class Artlyrics {
 
 			@Override
 			public String tr(String key) {
-				return I18n.exists(key) ? I18n.get(key) : key;
+				// The raw text: I18n.get would try to fill in "%s" itself and, with nothing to fill in, show
+				// "Format error: ..." instead. Callers that need a value put it in with String.format.
+				return Language.getInstance().getOrDefault(key, key);
 			}
 
 			@Override

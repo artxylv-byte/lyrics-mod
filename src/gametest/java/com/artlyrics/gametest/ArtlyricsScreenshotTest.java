@@ -157,6 +157,11 @@ public class ArtlyricsScreenshotTest implements FabricClientGameTest {
 		// Wait for resources to finish loading: until then every glyph is the 6px "missing" box ("iiii" = 24).
 		context.waitFor(client -> client.getOverlay() == null && client.font.width("iiii") < 24, 20 * 120);
 		context.runOnClient(client -> {
+			// Texts with a "%s" gap must come back as they are, for the menu to fill in (not "Format error").
+			String raw = Artlyrics.get().uiHost(() -> { }).tr("artlyrics.updates.available");
+			if (!raw.equals("Version %s is available")) {
+				throw new AssertionError("Menu text came back as: " + raw);
+			}
 			String sample = "The quick brown fox jumps over the lazy dog";
 			int vanilla = client.font.width(sample);
 			for (ArtlyricsConfig.TextFont font : ArtlyricsConfig.TextFont.values()) {
