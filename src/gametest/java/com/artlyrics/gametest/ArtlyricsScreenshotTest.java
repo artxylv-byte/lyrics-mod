@@ -213,6 +213,16 @@ public class ArtlyricsScreenshotTest implements FabricClientGameTest {
 				context.waitTicks(10);
 				context.takeScreenshot("09-settings-page-" + (page + 1));
 			}
+			// The layout editor over the world.
+			context.runOnClient(client -> {
+				if (client.screen instanceof ArtlyricsScreen screen) {
+					screen.openLayout();
+				}
+			});
+			context.waitTicks(10);
+			context.takeScreenshot("09z-layout-editor");
+			context.setScreen(() -> new ArtlyricsScreen(null));
+			context.waitTicks(5);
 			// The light menu theme.
 			context.runOnClient(client -> {
 				Artlyrics.get().config().menuTheme = ArtlyricsConfig.MenuTheme.LIGHT;

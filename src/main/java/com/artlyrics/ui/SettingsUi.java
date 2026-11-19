@@ -36,14 +36,26 @@ import java.util.function.IntConsumer;
  * smoothly (opening, page changes, hovering, toggles, scrolling).
  */
 public final class SettingsUi {
+	/** The tabs in the top bar: the pages about the lyrics themselves, and everything else. */
+	public enum Tab {
+		LYRICS, EXTRAS;
+
+		String key() {
+			return "artlyrics.ui.tab." + name().toLowerCase(Locale.ROOT);
+		}
+	}
+
 	public enum Page {
-		HOME("home"), NOW_PLAYING("note"), LYRICS("lyrics"), LOOK("palette"), SKIES("sky"), HOLIDAYS("star"), PLACEMENT("compass"),
-		CARD("card"), MUSIC("headphones"), SOURCES("search");
+		HOME("home", Tab.LYRICS), NOW_PLAYING("note", Tab.LYRICS), LYRICS("lyrics", Tab.LYRICS), LOOK("palette", Tab.LYRICS),
+		SKIES("sky", Tab.EXTRAS), HOLIDAYS("star", Tab.EXTRAS), PLACEMENT("compass", Tab.LYRICS), CARD("card", Tab.LYRICS),
+		MUSIC("headphones", Tab.EXTRAS), SOURCES("search", Tab.EXTRAS);
 
 		final String icon;
+		final Tab tab;
 
-		Page(String icon) {
+		Page(String icon, Tab tab) {
 			this.icon = icon;
+			this.tab = tab;
 		}
 
 		String key() {
@@ -52,6 +64,10 @@ public final class SettingsUi {
 	}
 
 	private static final TextFont UI = TextFont.SOFT;
+	/** Height of the top bar. */
+	static final int BAR_H = 24;
+	/** Same as the hover renderer's size of one font pixel, in radians, at text size 1. */
+	private static final float HOVER_RADIANS_PER_PX = 0.0068f;
 	private static final int ROW_H = 26;
 	private static final int NAV_H = 18;
 	private static final int CONTROL_W = 112;
@@ -65,6 +81,22 @@ public final class SettingsUi {
 	private final SongCardView cardPreview = new SongCardView();
 
 	private Page page = Page.HOME;
+	private final Map<Tab, Page> lastPage = new java.util.EnumMap<>(Tab.class);
+	private float tabX = -1;
+	private float tabW;
+	private @Nullable String tooltip;
+
+	// Layout editor: drag the song card and the hover lyrics anywhere on the screen.
+	private boolean layoutMode;
+	private int layoutDrag;
+	private double dragDx;
+	private double dragDy;
+	private final SongCardView layoutCard = new SongCardView();
+	private int[] cardBox = new int[4];
+	private int[] hoverBox = new int[4];
+	private int screenW;
+	private int screenH;
+	private float focal;
 	private boolean started;
 	private long openedNanos;
 	private long pageNanos;
@@ -114,9 +146,54 @@ public final class SettingsUi {
 		return page;
 	}
 
+	/** The pages under a tab, in sidebar order. */
+	static List<Page> pagesIn(Tab tab) {
+		List<Page> list = new ArrayList<>();
+		for (Page p : Page.values()) {
+			if (p.tab == tab) {
+				list.add(p);
+			}
+		}
+		return list;
+	}
+
+	private void switchTab(Tab tab) {
+		if (page.tab != tab) {
+			setPage(lastPage.getOrDefault(tab, pagesIn(tab).get(0)));
+		}
+	}
+
+	/** Called when the screen closes. */
+	public void onClosed() {
+		SongCardView.hudHidden = false;
+		layoutMode = false;
+	}
+
+	/** Opens the layout editor, where the song card and the hover lyrics are dragged into place. */
+	public void openLayout() {
+		layoutMode = true;
+		layoutDrag = 0;
+		SongCardView.hudHidden = true;
+	}
+
+	private void closeLayout() {
+		layoutMode = false;
+		layoutDrag = 0;
+		SongCardView.hudHidden = false;
+		host.settingsChanged();
+	}
+
+	public boolean layoutMode() {
+		return layoutMode;
+	}
+
 	public void setPage(Page page) {
 		if (this.page != page) {
+			if (this.page.tab != page.tab) {
+				navY = -1; // a different list: jump instead of sliding
+			}
 			this.page = page;
+			lastPage.put(page.tab, page);
 			pageNanos = now;
 			scroll = 0;
 			scrollTarget = 0;
@@ -140,21 +217,29 @@ public final class SettingsUi {
 		lastNanos = nowNanos;
 		now = nowNanos;
 		hits.clear();
+		tooltip = null;
 
 		ArtlyricsConfig config = host.config();
 		accent = Theme.accent(config.palette().from());
 		float open = Easing.inOutSine((now - openedNanos) / 220_000_000f);
+		screenW = c.width();
+		screenH = c.height();
+		if (layoutMode) {
+			renderLayout(c);
+			drawTooltip(c);
+			return;
+		}
 
 		c.fill(0, 0, c.width(), c.height(), Draw.withAlpha(Theme.SCRIM, ((Theme.SCRIM >>> 24) / 255f) * open));
 
-		pw = Math.min(470, c.width() - 16);
-		ph = Math.min(280, c.height() - 16);
+		pw = Math.min(480, c.width() - 16);
+		ph = Math.min(300, c.height() - 16);
 		px = (c.width() - pw) / 2;
 		py = (c.height() - ph) / 2 + Math.round((1f - open) * 10f);
 		side = pw < 380 ? 30 : 112;
 		cx = px + side + 12;
 		cw = pw - side - 24;
-		contentTop = py + 44;
+		contentTop = py + BAR_H + 44;
 		contentBottom = py + ph - 8;
 
 		float baseAlpha = c.alpha();
@@ -163,7 +248,8 @@ public final class SettingsUi {
 		// Panel and sidebar.
 		Draw.roundRect(c, px, py, px + pw, py + ph, 8, Theme.PANEL);
 		Draw.roundRectLeft(c, px, py, px + side, py + ph, 8, Theme.SIDEBAR);
-		c.fill(px + side, py, px + side + 1, py + ph, Theme.LINE);
+		c.fill(px + side, py + BAR_H, px + side + 1, py + ph, Theme.LINE);
+		drawTopBar(c);
 		Draw.roundOutline(c, px, py, px + pw, py + ph, 8, Draw.withAlpha(Theme.HIGHLIGHT, 0.09f));
 		drawSidebar(c);
 		drawHeader(c);
@@ -193,26 +279,300 @@ public final class SettingsUi {
 		scrollTarget = Math.max(0, Math.min(maxScroll, scrollTarget));
 		drawScrollbar(c, contentHeight);
 		c.setAlpha(baseAlpha);
+		drawTooltip(c);
+	}
+
+	// ---- Top bar ----
+
+	/** The bar across the top: logo, the Lyrics / Extras tabs, and buttons (update, layout, folder, theme, help, close). */
+	private void drawTopBar(Canvas c) {
+		ArtlyricsConfig config = host.config();
+		Draw.roundRectTop(c, px, py, px + pw, py + BAR_H, 8, Theme.SIDEBAR);
+		c.fill(px, py + BAR_H, px + pw, py + BAR_H + 1, Theme.LINE);
+		boolean compact = side < 60;
+		double seconds = now / 1e9;
+		int ly = py + 5;
+		c.gradientV(px + 9, ly, px + 23, ly + 14, 0xFF000000 | config.palette().colorAt(0f, seconds),
+				0xFF000000 | config.palette().colorAt(1f, seconds));
+		c.icon("note", px + 11, ly + 2, 0xFFFFFFFF);
+		if (!compact) {
+			c.text("Artlyrics", UI, px + 28, ly + 3, Theme.TEXT, false);
+		}
+
+		// Tabs, with the selected one's background gliding between them.
+		int tabsX = compact ? px + 30 : px + side + 8;
+		int ty = py + 4;
+		int th = 16;
+		int x = tabsX;
+		for (Tab tab : Tab.values()) {
+			String label = host.tr(tab.key()).toUpperCase(Locale.ROOT);
+			int w = Math.max(compact ? 46 : 58, c.textWidth(label, UI) + 22);
+			boolean selected = page.tab == tab;
+			if (selected) {
+				tabX = tabX < 0 ? x : tabX + (x - tabX) * Easing.approach(dt, 16f);
+				tabW = tabW <= 0 ? w : tabW + (w - tabW) * Easing.approach(dt, 16f);
+			}
+			x += w + 2;
+		}
+		Draw.roundRect(c, Math.round(tabX), ty, Math.round(tabX + tabW), ty + th, 4, Theme.CARD_HOVER);
+		Draw.roundOutline(c, Math.round(tabX), ty, Math.round(tabX + tabW), ty + th, 4, Draw.withAlpha(Theme.HIGHLIGHT, 0.08f));
+		x = tabsX;
+		for (Tab tab : Tab.values()) {
+			String label = host.tr(tab.key()).toUpperCase(Locale.ROOT);
+			int w = Math.max(compact ? 46 : 58, c.textWidth(label, UI) + 22);
+			boolean selected = page.tab == tab;
+			float h = hover("tab:" + tab, inside(x, ty, x + w, ty + th) && !selected);
+			int color = selected ? Theme.TEXT : Draw.lerpArgb(Theme.FAINT, Theme.TEXT, 0.35f + 0.4f * h);
+			c.text(label, UI, x + (w - c.textWidth(label, UI)) / 2, ty + 4, color, false);
+			hits.add(new Hit(x, ty, x + w, ty + th, () -> switchTab(tab), null, 0, 0));
+			x += w + 2;
+		}
+
+		// Buttons, from the right.
+		int bw = 20;
+		int bx = px + pw - 6 - bw;
+		int by = py + 4;
+		barButton(c, "close", "close", bx, by, host.tr("artlyrics.ui.tip.close"), host::close, false, -1f);
+		bx -= bw + 4;
+		String repo = config.updateRepository == null || config.updateRepository.isBlank() ? "artxylv-byte/lyrics-mod" : config.updateRepository;
+		String branch = config.updateBranches == null || config.updateBranches.isEmpty() ? "main" : config.updateBranches.get(config.updateBranches.size() - 1);
+		barButton(c, "help", "help", bx, by, host.tr("artlyrics.ui.tip.help"),
+				() -> host.openUrl("https://github.com/" + repo + "/blob/" + branch + "/README.md"), false, -1f);
+		bx -= bw + 4;
+		barButton(c, "theme", "theme", bx, by, String.format(Locale.ROOT, host.tr("artlyrics.ui.tip.theme"), host.tr(config.menuTheme.translationKey())), () -> {
+			ArtlyricsConfig.MenuTheme[] themes = ArtlyricsConfig.MenuTheme.values();
+			config.menuTheme = themes[(config.menuTheme.ordinal() + 1) % themes.length];
+			host.settingsChanged();
+		}, false, -1f);
+		bx -= bw + 4;
+		barButton(c, "folder", "folder", bx, by, host.tr("artlyrics.ui.tip.folder"), host::openLyricsFolder, false, -1f);
+		bx -= bw + 4;
+		barButton(c, "layout", "move", bx, by, host.tr("artlyrics.ui.tip.layout"), this::openLayout, false, -1f);
+		bx -= bw + 4;
+		updateButton(c, bx, by);
+	}
+
+	/** The update button: a dot when there's a new version; clicking does the next step. */
+	private void updateButton(Canvas c, int x, int y) {
+		Updater u = host.updater();
+		if (u == null) {
+			return;
+		}
+		String newest = u.latest() == null ? "" : u.latest().version();
+		String tip;
+		Runnable action;
+		boolean badge = false;
+		float progress = -1f;
+		switch (u.state()) {
+			case CHECKING -> {
+				tip = host.tr("artlyrics.updates.checking");
+				action = () -> { };
+			}
+			case UP_TO_DATE -> {
+				tip = String.format(Locale.ROOT, host.tr("artlyrics.ui.tip.up_to_date"), u.currentVersion());
+				action = () -> u.check(false);
+			}
+			case AVAILABLE -> {
+				badge = true;
+				tip = String.format(Locale.ROOT, host.tr(u.canInstall() ? "artlyrics.ui.tip.update_install" : "artlyrics.ui.tip.update_available"), newest);
+				action = u.canInstall() ? u::install : () -> setPage(Page.MUSIC);
+			}
+			case DOWNLOADING -> {
+				progress = u.progress();
+				tip = host.tr("artlyrics.updates.downloading") + " " + Math.round(u.progress() * 100) + "%";
+				action = () -> { };
+			}
+			case READY -> {
+				badge = true;
+				tip = String.format(Locale.ROOT, host.tr("artlyrics.ui.tip.update_ready"), newest);
+				action = () -> setPage(Page.MUSIC);
+			}
+			case FAILED -> {
+				tip = u.message().isBlank() ? host.tr("artlyrics.updates.failed") : u.message();
+				action = () -> u.check(false);
+			}
+			default -> {
+				tip = host.tr("artlyrics.ui.tip.update_check");
+				action = () -> u.check(false);
+			}
+		}
+		barButton(c, "update", "update", x, y, tip, action, badge, progress);
+	}
+
+	/** A square button in the top bar, with a tooltip, an optional dot and an optional progress line. */
+	private void barButton(Canvas c, String id, String icon, int x, int y, String tip, Runnable action, boolean badge, float progress) {
+		int w = 20;
+		int h = 16;
+		boolean over = inside(x, y, x + w, y + h);
+		float hv = hover("bar:" + id, over);
+		Draw.roundRect(c, x, y, x + w, y + h, 4, Draw.lerpArgb(Theme.CARD, Theme.CARD_HOVER, hv));
+		Draw.roundOutline(c, x, y, x + w, y + h, 4, Draw.withAlpha(Theme.HIGHLIGHT, 0.08f + 0.08f * hv));
+		c.icon(icon, x + (w - 10) / 2, y + (h - 10) / 2, Draw.lerpArgb(Theme.MUTED, Theme.TEXT, 0.4f + 0.6f * hv));
+		if (progress >= 0f) {
+			c.fill(x + 3, y + h - 3, x + w - 3, y + h - 2, Draw.withAlpha(Theme.HIGHLIGHT, 0.2f));
+			c.fill(x + 3, y + h - 3, x + 3 + Math.round((w - 6) * progress), y + h - 2, accent);
+		}
+		if (badge) {
+			float pulse = 0.5f + 0.5f * (float) Math.sin(now / 1e9 * 3.0);
+			Draw.circle(c, x + w - 1.5f, y + 1.5f, 4f, Draw.withAlpha(accent & 0xFFFFFF, 0.25f * pulse));
+			Draw.circle(c, x + w - 1.5f, y + 1.5f, 2.5f, accent);
+		}
+		if (over) {
+			tooltip = tip;
+		}
+		hits.add(new Hit(x, y, x + w, y + h, action, null, 0, 0));
+	}
+
+	/** The tooltip of the button under the mouse, drawn on top of everything. */
+	private void drawTooltip(Canvas c) {
+		if (tooltip == null || tooltip.isBlank()) {
+			return;
+		}
+		int w = c.textWidth(tooltip, UI) + 10;
+		int h = 14;
+		int x = Math.min(c.width() - w - 4, mouseX + 8);
+		int y = mouseY + 14;
+		if (y + h > c.height() - 4) {
+			y = mouseY - h - 6;
+		}
+		Draw.roundRect(c, x, y, x + w, y + h, 4, 0xF0000000 | (Theme.CARD & 0xFFFFFF));
+		Draw.roundOutline(c, x, y, x + w, y + h, 4, Draw.withAlpha(Theme.HIGHLIGHT, 0.15f));
+		c.text(tooltip, UI, x + 5, y + 3, Theme.TEXT, false);
+	}
+
+	// ---- Layout editor ----
+
+	/** Drag the song card and the hover lyrics anywhere; scroll over them to resize. */
+	private void renderLayout(Canvas c) {
+		ArtlyricsConfig config = host.config();
+		int sw = c.width();
+		int sh = c.height();
+		c.fill(0, 0, sw, sh, 0x48000000);
+		if (layoutDrag != 0) {
+			int guide = Draw.withAlpha(accent & 0xFFFFFF, 0.4f);
+			c.fill(sw / 2, 0, sw / 2 + 1, sh, guide);
+			c.fill(0, sh / 2, sw, sh / 2 + 1, guide);
+		}
+
+		// Hover lyrics: where they hang relative to the crosshair.
+		focal = (sh / 2f) / (float) Math.tan(Math.toRadians(host.fovDegrees() / 2f));
+		float rad = HOVER_RADIANS_PER_PX * config.size;
+		int hw = Math.max(40, Math.round(Math.min(config.lineWidth, 260f) * rad * focal));
+		int hh = Math.max(10, Math.round(14f * rad * focal));
+		float hx = sw / 2f + (float) Math.tan(Math.toRadians(config.hoverSide)) * focal;
+		float hy = sh / 2f - (float) Math.tan(Math.toRadians(config.hoverRaise)) * focal;
+		hoverBox = new int[] {Math.round(hx - hw / 2f), Math.round(hy - hh / 2f), hw, hh};
+		boolean hoverMode = config.displayMode == ArtlyricsConfig.DisplayMode.HOVER;
+		boolean overHover = layoutDrag == 2 || layoutDrag == 0 && inside(hoverBox[0], hoverBox[1], hoverBox[0] + hw, hoverBox[1] + hh);
+		Draw.roundRect(c, hoverBox[0], hoverBox[1], hoverBox[0] + hw, hoverBox[1] + hh, 4, 0x55000000);
+		Draw.roundOutline(c, hoverBox[0], hoverBox[1], hoverBox[0] + hw, hoverBox[1] + hh, 4,
+				overHover ? accent : Draw.withAlpha(0xFFFFFF, hoverMode ? 0.55f : 0.3f));
+		String sample = host.tr("artlyrics.layout.hover_sample");
+		float ts = Math.max(0.6f, Math.min(2.5f, hh * 0.6f / 8f));
+		c.push();
+		c.translate(hoverBox[0] + hw / 2f - c.textWidth(sample, config.font) * ts / 2f, hoverBox[1] + hh / 2f - 4f * ts);
+		c.scale(ts);
+		c.text(sample, config.font, 0, 0, Draw.withAlpha(0xFFFFFF, hoverMode ? 0.95f : 0.5f), true);
+		c.pop();
+		String hoverLabel = host.tr("artlyrics.layout.hover") + (hoverMode ? "" : "  ·  " + host.tr("artlyrics.layout.hover_off"));
+		c.text(hoverLabel, UI, hoverBox[0], hoverBox[1] - 11, overHover ? accent : 0xE0FFFFFF, true);
+
+		// The song card, live, where it'll be.
+		UiHost cardHost = host.track() != null ? host : sampleHost();
+		NowPlaying track = cardHost.track();
+		if (track != null && config.songCard) {
+			float s = config.cardScale;
+			int ch = layoutCard.measure(c, cardHost, now, true);
+			int cwid = layoutCard.cardWidth(config);
+			int w = Math.round(cwid * s);
+			int h = Math.round(ch * s);
+			int[] pos = SongCardView.position(config, sw, sh, w, h);
+			c.push();
+			c.translate(pos[0], pos[1]);
+			c.scale(s);
+			layoutCard.drawCard(c, cardHost, track, 0, 0, cwid, ch, now);
+			c.pop();
+			cardBox = new int[] {pos[0], pos[1], w, h};
+			boolean overCard = layoutDrag == 1 || layoutDrag == 0 && !overHover && inside(pos[0], pos[1], pos[0] + w, pos[1] + h);
+			Draw.roundOutline(c, pos[0] - 2, pos[1] - 2, pos[0] + w + 2, pos[1] + h + 2, 5, overCard ? accent : 0x80FFFFFF);
+			String label = host.tr("artlyrics.layout.card") + "  ·  " + Math.round(s * 100) + "%";
+			int labelY = pos[1] > 14 ? pos[1] - 12 : pos[1] + h + 4;
+			c.text(label, UI, pos[0], labelY, overCard ? accent : 0xE0FFFFFF, true);
+		} else {
+			cardBox = new int[4];
+		}
+
+		// Toolbar.
+		String hint = host.tr("artlyrics.layout.hint");
+		int resetW = c.textWidth(host.tr("artlyrics.layout.reset"), UI) + 16;
+		int doneW = c.textWidth(host.tr("artlyrics.layout.done"), UI) + 20;
+		int barW = c.textWidth(hint, UI) + resetW + doneW + 34;
+		int bx0 = (sw - barW) / 2;
+		int by0 = sh - 34;
+		Theme.apply(config.menuTheme);
+		Draw.roundRect(c, bx0, by0, bx0 + barW, by0 + 24, 6, Theme.PANEL);
+		Draw.roundOutline(c, bx0, by0, bx0 + barW, by0 + 24, 6, Draw.withAlpha(Theme.HIGHLIGHT, 0.12f));
+		c.text(hint, UI, bx0 + 10, by0 + 8, Theme.MUTED, false);
+		int rx = bx0 + barW - doneW - resetW - 12;
+		layoutButton(c, "reset", host.tr("artlyrics.layout.reset"), rx, by0 + 4, resetW, false, () -> {
+			ArtlyricsConfig d = new ArtlyricsConfig();
+			config.cardCorner = d.cardCorner;
+			config.cardX = d.cardX;
+			config.cardY = d.cardY;
+			config.cardScale = d.cardScale;
+			config.hoverRaise = d.hoverRaise;
+			config.hoverSide = d.hoverSide;
+			host.settingsChanged();
+		});
+		layoutButton(c, "done", host.tr("artlyrics.layout.done"), bx0 + barW - doneW - 6, by0 + 4, doneW, true, this::closeLayout);
+	}
+
+	private void layoutButton(Canvas c, String id, String label, int x, int y, int w, boolean primary, Runnable action) {
+		float hv = hover("layout:" + id, inside(x, y, x + w, y + 16));
+		int bg = primary ? Draw.lerpArgb(accent, 0xFFFFFFFF, 0.15f * hv) : Draw.lerpArgb(Theme.CARD, Theme.CARD_HOVER, hv);
+		Draw.roundRect(c, x, y, x + w, y + 16, 4, bg);
+		c.text(label, UI, x + (w - c.textWidth(label, UI)) / 2, y + 4, primary ? Theme.readable(0xFFFFFFFF) : Theme.TEXT, false);
+		hits.add(new Hit(x, y, x + w, y + 16, action, null, 0, 0));
+	}
+
+	/** Snaps v to the nearest of the targets when it's within a few pixels. */
+	private static float snap(float v, float... targets) {
+		for (float t : targets) {
+			if (Math.abs(v - t) < 5f) {
+				return t;
+			}
+		}
+		return v;
+	}
+
+	private void layoutDrag(double x, double y) {
+		ArtlyricsConfig config = host.config();
+		if (layoutDrag == 1) {
+			int w = cardBox[2];
+			int h = cardBox[3];
+			float nx = snap((float) (x - dragDx), 6f, (screenW - w) / 2f, screenW - w - 6f);
+			float ny = snap((float) (y - dragDy), 6f, (screenH - h) / 2f, screenH - h - 6f);
+			config.cardCorner = ArtlyricsConfig.CardCorner.CUSTOM;
+			config.cardX = Easing.clamp01(nx / Math.max(1f, screenW - w));
+			config.cardY = Easing.clamp01(ny / Math.max(1f, screenH - h));
+		} else if (layoutDrag == 2) {
+			float cxp = snap((float) (x - dragDx), screenW / 2f);
+			float cyp = snap((float) (y - dragDy), screenH / 2f);
+			float side = (float) Math.toDegrees(Math.atan((cxp - screenW / 2f) / focal));
+			float raise = (float) Math.toDegrees(Math.atan((screenH / 2f - cyp) / focal));
+			config.hoverSide = Math.max(-45f, Math.min(45f, Math.round(side * 2f) / 2f));
+			config.hoverRaise = Math.max(-30f, Math.min(35f, Math.round(raise * 2f) / 2f));
+		}
 	}
 
 	private void drawSidebar(Canvas c) {
 		boolean compact = side < 60;
-		int y = py + 10;
-		if (!compact) {
-			c.gradientV(px + 10, y, px + 26, y + 16, 0xFF000000 | host.config().palette().colorAt(0f, now / 1e9),
-					0xFF000000 | host.config().palette().colorAt(1f, now / 1e9));
-			c.icon("note", px + 13, y + 3, 0xFFFFFFFF);
-			c.text("Artlyrics", UI, px + 31, y, Theme.TEXT, false);
-			c.text(host.tr("artlyrics.ui.tagline"), UI, px + 31, y + 9, Theme.MUTED, false);
-		} else {
-			c.icon("note", px + 10, y + 3, accent);
-		}
-
-		int navTop = py + 40;
+		List<Page> pages = pagesIn(page.tab);
+		int navTop = py + BAR_H + 8;
 		// Fit every page: rows get a little tighter when there are many.
-		int step = Math.max(14, Math.min(NAV_H + 2, (py + ph - 30 - navTop) / Page.values().length));
+		int step = Math.max(14, Math.min(NAV_H + 2, (py + ph - 30 - navTop) / pages.size()));
 		int itemH = step - 2;
-		int selectedIndex = page.ordinal();
+		int selectedIndex = pages.indexOf(page);
 		float targetY = navTop + selectedIndex * step;
 		navY = navY < 0 ? targetY : navY + (targetY - navY) * Easing.approach(dt, 16f);
 		int sx0 = px + 6;
@@ -220,8 +580,8 @@ public final class SettingsUi {
 		Draw.roundRect(c, sx0, Math.round(navY), sx1, Math.round(navY) + itemH, 4, Draw.withAlpha(accent, 0.18f));
 		c.fill(sx0, Math.round(navY) + 4, sx0 + 2, Math.round(navY) + itemH - 4, accent);
 
-		for (Page p : Page.values()) {
-			int iy = navTop + p.ordinal() * step;
+		for (Page p : pages) {
+			int iy = navTop + pages.indexOf(p) * step;
 			boolean hovered = inside(sx0, iy, sx1, iy + itemH);
 			float h = hover("nav:" + p, hovered && p != page);
 			if (h > 0.01f) {
@@ -249,7 +609,7 @@ public final class SettingsUi {
 	}
 
 	private void drawHeader(Canvas c) {
-		int y = py + 10;
+		int y = py + BAR_H + 9;
 		c.push();
 		c.translate(cx, y);
 		c.scale(1.4f);
@@ -259,7 +619,7 @@ public final class SettingsUi {
 
 		// Master switch.
 		ArtlyricsConfig config = host.config();
-		int x1 = px + pw - 26;
+		int x1 = px + pw - 12;
 		int tw = 22;
 		int ty = y + 2;
 		String label = host.tr(config.enabled ? "artlyrics.ui.on" : "artlyrics.ui.off");
@@ -269,16 +629,6 @@ public final class SettingsUi {
 			config.enabled = !config.enabled;
 			host.settingsChanged();
 		}, null, 0, 0));
-
-		// Close button.
-		int bx = px + pw - 18;
-		int by = py + 8;
-		float h = hover("close", inside(bx - 2, by - 2, bx + 12, by + 12));
-		if (h > 0.01f) {
-			Draw.roundRect(c, bx - 2, by - 2, bx + 12, by + 12, 3, Draw.withAlpha(Theme.HIGHLIGHT, 0.08f * h));
-		}
-		c.icon("close", bx, by, Draw.lerpArgb(Theme.MUTED, Theme.TEXT, h));
-		hits.add(new Hit(bx - 2, by - 2, bx + 12, by + 12, host::close, null, 0, 0));
 
 		c.fill(cx, contentTop - 4, cx + cw, contentTop - 3, Theme.LINE);
 	}
@@ -676,10 +1026,13 @@ public final class SettingsUi {
 					Math.round(config.arcAmount * 100) + "%", v -> config.arcAmount = round(v, 0.05f));
 		}
 		y = section(c, "artlyrics.ui.section.hover", y + 2);
+		y = rowButton(c, "hoverLayout", "artlyrics.option.layout", "artlyrics.option.layout.button", y, this::openLayout);
 		y = rowSlider(c, "hoverDistance", "artlyrics.option.hover_distance", y, config.hoverDistance, 2f, 10f,
 				String.format(Locale.ROOT, "%.1f %s", config.hoverDistance, host.tr("artlyrics.ui.blocks")), v -> config.hoverDistance = round(v, 0.5f));
-		y = rowSlider(c, "hoverRaise", "artlyrics.option.hover_raise", y, config.hoverRaise, -15f, 30f,
+		y = rowSlider(c, "hoverRaise", "artlyrics.option.hover_raise", y, config.hoverRaise, -30f, 35f,
 				Math.round(config.hoverRaise) + "°", v -> config.hoverRaise = Math.round(v));
+		y = rowSlider(c, "hoverSide", "artlyrics.option.hover_side", y, config.hoverSide, -45f, 45f,
+				Math.round(config.hoverSide) + "°", v -> config.hoverSide = Math.round(v));
 		y = rowSlider(c, "follow", "artlyrics.option.follow", y, config.followSpeed, 1f, 20f,
 				followLabel(config.followSpeed), v -> config.followSpeed = Math.round(v));
 		return y;
@@ -717,6 +1070,7 @@ public final class SettingsUi {
 		}
 		y = rowSelector(c, "corner", "artlyrics.option.card_corner", y, config.cardCorner.ordinal(),
 				labels(ArtlyricsConfig.CardCorner.values(), k -> k.translationKey()), i -> config.cardCorner = ArtlyricsConfig.CardCorner.values()[i]);
+		y = rowButton(c, "cardLayout", "artlyrics.option.layout", "artlyrics.option.layout.button", y, this::openLayout);
 		y = rowSlider(c, "cardScale", "artlyrics.option.card_scale", y, config.cardScale, 0.6f, 1.6f,
 				Math.round(config.cardScale * 100) + "%", v -> config.cardScale = round(v, 0.05f));
 		y = rowSlider(c, "cardOpacity", "artlyrics.option.card_opacity", y, config.cardOpacity, 0.2f, 1f,
@@ -1535,6 +1889,25 @@ public final class SettingsUi {
 		if (button != 0) {
 			return false;
 		}
+		if (layoutMode) {
+			for (int i = hits.size() - 1; i >= 0; i--) {
+				Hit hit = hits.get(i);
+				if (hit.contains(x, y) && hit.click != null) {
+					hit.click.run();
+					return true;
+				}
+			}
+			if (x >= hoverBox[0] && x < hoverBox[0] + hoverBox[2] && y >= hoverBox[1] && y < hoverBox[1] + hoverBox[3]) {
+				layoutDrag = 2;
+				dragDx = x - (hoverBox[0] + hoverBox[2] / 2.0);
+				dragDy = y - (hoverBox[1] + hoverBox[3] / 2.0);
+			} else if (cardBox[2] > 0 && x >= cardBox[0] && x < cardBox[0] + cardBox[2] && y >= cardBox[1] && y < cardBox[1] + cardBox[3]) {
+				layoutDrag = 1;
+				dragDx = x - cardBox[0];
+				dragDy = y - cardBox[1];
+			}
+			return true;
+		}
 		for (int i = hits.size() - 1; i >= 0; i--) {
 			Hit hit = hits.get(i);
 			if (hit.contains(x, y)) {
@@ -1551,6 +1924,10 @@ public final class SettingsUi {
 	}
 
 	public void mouseDragged(double x, double y) {
+		if (layoutMode) {
+			layoutDrag(x, y);
+			return;
+		}
 		if (dragging != null) {
 			applyDrag(x);
 		}
@@ -1558,6 +1935,10 @@ public final class SettingsUi {
 
 	public void mouseReleased() {
 		dragging = null;
+		if (layoutDrag != 0) {
+			layoutDrag = 0;
+			host.settingsChanged();
+		}
 	}
 
 	private void applyDrag(double x) {
@@ -1569,6 +1950,16 @@ public final class SettingsUi {
 	}
 
 	public boolean mouseScrolled(double x, double y, double amount) {
+		if (layoutMode) {
+			ArtlyricsConfig config = host.config();
+			if (x >= hoverBox[0] && x < hoverBox[0] + hoverBox[2] && y >= hoverBox[1] && y < hoverBox[1] + hoverBox[3]) {
+				config.size = Math.max(0.5f, Math.min(2.5f, Math.round((config.size + (float) amount * 0.05f) * 20f) / 20f));
+			} else if (cardBox[2] > 0 && x >= cardBox[0] && x < cardBox[0] + cardBox[2] && y >= cardBox[1] && y < cardBox[1] + cardBox[3]) {
+				config.cardScale = Math.max(0.6f, Math.min(1.6f, Math.round((config.cardScale + (float) amount * 0.05f) * 20f) / 20f));
+			}
+			host.settingsChanged();
+			return true;
+		}
 		if (x >= cx - 4 && x < cx + cw + 10 && y >= contentTop && y < contentBottom) {
 			scrollTarget = Math.max(0, Math.min(maxScroll, scrollTarget - (float) amount * 26f));
 			return true;

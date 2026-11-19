@@ -149,7 +149,9 @@ public final class ArtlyricsConfig {
 
 	/** Where the song card sits. */
 	public enum CardCorner {
-		TOP_LEFT, TOP_CENTER, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT;
+		TOP_LEFT, TOP_CENTER, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT,
+		/** Wherever it was dragged to in the layout editor ({@link #cardX}, {@link #cardY}). */
+		CUSTOM;
 
 		public String translationKey() {
 			return "artlyrics.corner." + name().toLowerCase(Locale.ROOT);
@@ -206,6 +208,8 @@ public final class ArtlyricsConfig {
 	public float hoverDistance = 4.0f;
 	/** Degrees above the crosshair for hover mode. */
 	public float hoverRaise = 9f;
+	/** Degrees to the right (negative: left) of the crosshair for hover lyrics. */
+	public float hoverSide = 0f;
 	/** How quickly hovering lines catch up with your view. */
 	public float followSpeed = 7f;
 
@@ -215,6 +219,9 @@ public final class ArtlyricsConfig {
 	public float cardScale = 1.0f;
 	public float cardOpacity = 0.75f;
 	public CardStyle cardStyle = CardStyle.COMPACT;
+	/** With the custom position: where the card is, from 0 (left / top edge) to 1 (right / bottom edge). */
+	public float cardX = 0.02f;
+	public float cardY = 0.03f;
 	/** Player style: a record slides out from behind the cover and spins while the song plays. */
 	public boolean cardVinyl = true;
 	/** Player style: bars that dance along with the sung words. */
@@ -398,7 +405,10 @@ public final class ArtlyricsConfig {
 		driftSpeed = clamp(driftSpeed, 0f, 1f, d.driftSpeed);
 		arcAmount = clamp(arcAmount, 0f, 1f, d.arcAmount);
 		hoverDistance = clamp(hoverDistance, 2f, 10f, d.hoverDistance);
-		hoverRaise = clamp(hoverRaise, -15f, 30f, d.hoverRaise);
+		hoverRaise = clamp(hoverRaise, -30f, 35f, d.hoverRaise);
+		hoverSide = clamp(hoverSide, -45f, 45f, d.hoverSide);
+		cardX = clamp(cardX, 0f, 1f, d.cardX);
+		cardY = clamp(cardY, 0f, 1f, d.cardY);
 		followSpeed = clamp(followSpeed, 1f, 20f, d.followSpeed);
 		cardScale = clamp(cardScale, 0.6f, 1.6f, d.cardScale);
 		cardOpacity = clamp(cardOpacity, 0.2f, 1f, d.cardOpacity);

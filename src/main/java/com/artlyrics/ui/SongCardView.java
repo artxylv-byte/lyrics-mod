@@ -24,6 +24,8 @@ import java.util.Locale;
  */
 public final class SongCardView {
 	public static final int WIDTH = 176;
+	/** While the layout editor is open it draws the card itself, so the HUD leaves it out. */
+	public static volatile boolean hudHidden;
 	/** Width of the player style. */
 	public static final int PLAYER_WIDTH = 204;
 	private static final int PLAYER_ART = 52;
@@ -111,19 +113,11 @@ public final class SongCardView {
 		int height = measure(c, host, now, false);
 		int w = Math.round(cardWidth(config) * s);
 		int h = Math.round(height * s);
-		int x = switch (config.cardCorner) {
-			case TOP_LEFT, BOTTOM_LEFT -> MARGIN;
-			case TOP_CENTER -> (c.width() - w) / 2;
-			case TOP_RIGHT, BOTTOM_RIGHT -> c.width() - w - MARGIN;
-		};
-		int y = switch (config.cardCorner) {
-			case TOP_LEFT, TOP_RIGHT -> MARGIN;
-			case TOP_CENTER -> MARGIN + 18; // clear of boss bar titles
-			case BOTTOM_LEFT -> c.height() - h - 48; // above the chat input
-			case BOTTOM_RIGHT -> c.height() - h - MARGIN;
-		};
+		int[] pos = position(config, c.width(), c.height(), w, h);
+		int x = pos[0];
+		int y = pos[1];
 		float eased = Easing.inOutSine(appear);
-		boolean top = config.cardCorner != ArtlyricsConfig.CardCorner.BOTTOM_LEFT && config.cardCorner != ArtlyricsConfig.CardCorner.BOTTOM_RIGHT;
+		boolean top = y + h / 2 < c.height() / 2;
 
 		c.push();
 		c.translate(x, y + (1f - eased) * (top ? -6f : 6f));
@@ -225,6 +219,24 @@ public final class SongCardView {
 		} else {
 			drawLyrics(c, x + PAD, cy, width - PAD * 2, cardFont(config.font), now);
 		}
+	}
+
+	/** Where a card of size (w, h) goes on a screen of size (sw, sh): its top-left corner. */
+	public static int[] position(ArtlyricsConfig config, int sw, int sh, int w, int h) {
+		int x = switch (config.cardCorner) {
+			case TOP_LEFT, BOTTOM_LEFT -> MARGIN;
+			case TOP_CENTER -> (sw - w) / 2;
+			case TOP_RIGHT, BOTTOM_RIGHT -> sw - w - MARGIN;
+			case CUSTOM -> Math.round(config.cardX * Math.max(0, sw - w));
+		};
+		int y = switch (config.cardCorner) {
+			case TOP_LEFT, TOP_RIGHT -> MARGIN;
+			case TOP_CENTER -> MARGIN + 18; // clear of boss bar titles
+			case BOTTOM_LEFT -> sh - h - 48; // above the chat input
+			case BOTTOM_RIGHT -> sh - h - MARGIN;
+			case CUSTOM -> Math.round(config.cardY * Math.max(0, sh - h));
+		};
+		return new int[] {x, y};
 	}
 
 	/** The card's width now (the Mini pill grows and shrinks with the line). */

@@ -201,7 +201,7 @@ public final class SkyLyricsRenderer {
 
 	/** Hover anchor: eases towards where the camera looks, so text trails your view a little. */
 	private void followCamera(Camera camera, float dt, ArtlyricsConfig config) {
-		float targetYaw = Mc.cameraYaw(camera);
+		float targetYaw = Mc.cameraYaw(camera) + config.hoverSide;
 		float targetElev = -Mc.cameraPitch(camera) + config.hoverRaise;
 		if (!hoverInitialized) {
 			hoverYaw = targetYaw;

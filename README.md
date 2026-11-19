@@ -211,6 +211,20 @@ Change them under Options → Controls → Key Binds → Artlyrics.
 Press `K` (or use Mod Menu) to open the settings. Changes apply live, and the world keeps running behind the
 screen, so turn on **Demo song** and watch while you adjust.
 
+The bar at the top has two tabs, **Lyrics** (Home, Now Playing, Lyrics, Look, Placement, Song Card) and
+**Extras** (Skies, Holidays, Music, Sources), and buttons for:
+
+- **Update**: shows a dot when a new version is out; click it to install the update (or to check again).
+- **Layout**: move things on screen (see below).
+- **Lyrics folder**, **Menu theme** (click to try the next one), **Help** (opens this guide) and **Close**.
+
+### Placing things on screen
+
+**Layout** (in the top bar, or **Move…** on the Song Card and Placement pages) shows the song card and where the
+hover lyrics hang, over the game. Drag either of them anywhere; they snap to the middle and the edges. Scroll over
+the card to make it bigger or smaller, and over the hover lyrics to change the text size. **Reset** puts both back,
+**Done** goes back to the settings. A card you've dragged keeps its spot (Position: **Custom**) at any window size.
+
 | Page | What's there |
 | --- | --- |
 | Home | A welcome banner with your sky, shortcuts to the main pages, and what's playing (with media controls when they're on) |

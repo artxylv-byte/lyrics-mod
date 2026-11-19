@@ -104,6 +104,11 @@ public interface UiHost {
 
 	String version();
 
+	/** The game's field of view in degrees (vertical), to place things on screen like the game does. */
+	default float fovDegrees() {
+		return 70f;
+	}
+
 	/** Translates a language key. */
 	String tr(String key);
 

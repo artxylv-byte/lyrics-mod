@@ -179,6 +179,11 @@ public final class Artlyrics {
 		Artlyrics mod = this;
 		return new UiHost() {
 			@Override
+			public float fovDegrees() {
+				return net.minecraft.client.Minecraft.getInstance().options.fov().get().floatValue();
+			}
+
+			@Override
 			public ArtlyricsConfig config() {
 				return config;
 			}

@@ -23,6 +23,15 @@ public final class Draw {
 		c.fill(x0, y0 + r, x1, y1 - r, argb);
 	}
 
+	/** Only the top corners rounded. */
+	public static void roundRectTop(Canvas c, int x0, int y0, int x1, int y1, int r, int argb) {
+		for (int i = 0; i < r; i++) {
+			int inset = inset(r, i);
+			c.fill(x0 + inset, y0 + i, x1 - inset, y0 + i + 1, argb);
+		}
+		c.fill(x0, y0 + r, x1, y1, argb);
+	}
+
 	/** Only the left corners rounded. */
 	public static void roundRectLeft(Canvas c, int x0, int y0, int x1, int y1, int r, int argb) {
 		for (int i = 0; i < r; i++) {

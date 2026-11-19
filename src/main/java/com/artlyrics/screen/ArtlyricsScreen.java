@@ -26,6 +26,14 @@ public final class ArtlyricsScreen extends Screen {
 	}
 
 	@Override
+	public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
+		// The layout editor shows the game as it is, so things can be lined up with it.
+		if (!ui.layoutMode()) {
+			super.renderBackground(graphics, mouseX, mouseY, delta);
+		}
+	}
+
+	@Override
 	public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
 		return ui.mouseClicked(event.x(), event.y(), event.button()) || super.mouseClicked(event, doubleClick);
 	}
@@ -53,10 +61,21 @@ public final class ArtlyricsScreen extends Screen {
 		ui.setPage(pages[Math.floorMod(index, pages.length)]);
 	}
 
+	/** Opens the layout editor (used by the screenshot test). */
+	public void openLayout() {
+		ui.openLayout();
+	}
+
 	@Override
 	public boolean isPauseScreen() {
 		// Keep the world (and the demo song) moving behind the settings so changes can be watched live.
 		return false;
+	}
+
+	@Override
+	public void removed() {
+		ui.onClosed();
+		super.removed();
 	}
 
 	@Override

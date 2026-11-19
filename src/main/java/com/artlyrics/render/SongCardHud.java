@@ -18,7 +18,7 @@ public final class SongCardHud implements HudElement {
 	public void render(GuiGraphics graphics, DeltaTracker deltaTracker) {
 		Artlyrics mod = Artlyrics.get();
 		Minecraft mc = Minecraft.getInstance();
-		if (mod == null || mc.options.hideGui) {
+		if (mod == null || mc.options.hideGui || SongCardView.hudHidden) {
 			return;
 		}
 		if (host == null) {

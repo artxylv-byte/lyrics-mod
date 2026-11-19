@@ -146,18 +146,67 @@ class SettingsUiPreviewTest {
 		// Past the opening animation, so the panel is in its final place.
 		ui.render(canvas, -1, -1, 1_000_000_000L);
 		ui.render(canvas, -1, -1, 1_500_000_000L);
-		// Click the "Look" item in the sidebar (rows get tighter when there are many pages).
-		int panelX = (W - Math.min(470, W - 16)) / 2;
-		int panelH = Math.min(280, H - 16);
+		// Click the "Look" item in the sidebar (it lists the pages of the selected tab).
+		int panelW = Math.min(480, W - 16);
+		int panelH = Math.min(300, H - 16);
+		int panelX = (W - panelW) / 2;
 		int panelY = (H - panelH) / 2;
-		int step = Math.max(14, Math.min(20, (panelH - 30 - 40) / SettingsUi.Page.values().length));
-		ui.mouseClicked(panelX + 30, panelY + 40 + SettingsUi.Page.LOOK.ordinal() * step + 5, 0);
+		java.util.List<SettingsUi.Page> pages = SettingsUi.pagesIn(SettingsUi.Tab.LYRICS);
+		int navTop = panelY + SettingsUi.BAR_H + 8;
+		int step = Math.max(14, Math.min(20, (panelY + panelH - 30 - navTop) / pages.size()));
+		ui.mouseClicked(panelX + 30, navTop + pages.indexOf(SettingsUi.Page.LOOK) * step + 5, 0);
 		assertEquals(SettingsUi.Page.LOOK, ui.page());
 		// Click the master switch: lyrics turn off.
 		ui.render(canvas, -1, -1, 2_000_000_000L);
-		int switchX = panelX + Math.min(470, W - 16) - 26 - 11;
-		ui.mouseClicked(switchX, panelY + 10 + 6, 0);
+		int switchX = panelX + panelW - 12 - 11;
+		ui.mouseClicked(switchX, panelY + SettingsUi.BAR_H + 9 + 2 + 6, 0);
 		assertEquals(false, host.config.enabled);
+		// The Extras tab in the top bar switches to its first page; Lyrics goes back to the last page there.
+		ui.render(canvas, -1, -1, 2_500_000_000L);
+		int side = panelW < 380 ? 30 : 112;
+		int lyricsTabW = Math.max(58, canvas.textWidth("LYRICS", com.artlyrics.config.ArtlyricsConfig.TextFont.SOFT) + 22);
+		int extrasX = panelX + side + 8 + lyricsTabW + 2 + 10;
+		ui.mouseClicked(extrasX, panelY + 10, 0);
+		assertEquals(SettingsUi.Page.SKIES, ui.page());
+		ui.render(canvas, -1, -1, 3_000_000_000L);
+		ui.mouseClicked(panelX + side + 8 + 10, panelY + 10, 0);
+		assertEquals(SettingsUi.Page.LOOK, ui.page());
+	}
+
+	@Test
+	void layoutEditorMovesTheCard() throws Exception {
+		FakeHost host = new FakeHost();
+		SettingsUi ui = new SettingsUi(host);
+		JavaCanvas canvas = new JavaCanvas(W, H, 1);
+		ui.render(canvas, -1, -1, 1_000_000_000L);
+		ui.openLayout();
+		assertEquals(true, SongCardView.hudHidden);
+		ui.render(canvas, -1, -1, 1_100_000_000L);
+		// The card starts in the top-left corner: drag it to the middle of the screen.
+		ui.mouseClicked(20, 20, 0);
+		ui.mouseDragged(W / 2.0, H / 2.0);
+		ui.mouseReleased();
+		assertEquals(com.artlyrics.config.ArtlyricsConfig.CardCorner.CUSTOM, host.config.cardCorner);
+		assertEquals((W / 2.0 - 14) / (W - SongCardView.WIDTH), host.config.cardX, 0.02, "cardX");
+		// Scrolling over it makes it bigger.
+		ui.render(canvas, W / 2, H / 2, 1_200_000_000L);
+		ui.mouseScrolled(W / 2.0 + 5, H / 2.0 + 5, 2);
+		assertEquals(1.1f, host.config.cardScale, 0.001f);
+		// Drag the hover lyrics (around the crosshair) up and to the right.
+		ui.render(canvas, -1, -1, 1_300_000_000L);
+		float before = host.config.hoverRaise;
+		ui.mouseClicked(W / 2.0, H / 2.0 - 30, 0);
+		ui.mouseDragged(W / 2.0 + 60, H / 2.0 - 70);
+		ui.mouseReleased();
+		assertEquals(true, host.config.hoverSide > 5f, "hoverSide " + host.config.hoverSide);
+		assertEquals(true, host.config.hoverRaise > before, "hoverRaise " + host.config.hoverRaise);
+		// Saved image of the editor.
+		JavaCanvas shot = new JavaCanvas(W, H, SCALE);
+		shot.paintBackdrop();
+		ui.render(shot, W / 2, H / 2, 1_400_000_000L);
+		shot.save(OUT.resolve("layout-editor.png"));
+		ui.onClosed();
+		assertEquals(false, SongCardView.hudHidden);
 	}
 
 	private static void render(FakeHost host, SettingsUi.Page page, int scroll, String name, int w, int h) throws Exception {
