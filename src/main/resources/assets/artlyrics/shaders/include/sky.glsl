@@ -1029,6 +1029,86 @@ vec3 art_skySynth(vec3 d, float t, float px, int detail) {
     return col;
 }
 
+// ---------------------------------------------------------------------------------------------- violet clouds
+
+// How thick the cloud layer is at p (x, z across the sky; y from 0 at the flat bottoms to 1 at the tops).
+// Where there's more cloud it towers higher, so each cloud gets a flat base and a rounded, lumpy top.
+float art_cumulus(vec3 p, float t, int oct, float away) {
+    vec3 q = vec3(p.x + t * 0.03, p.y, p.z + t * 0.01);
+    float base = art_fbm3(vec3(q.x * 0.85, q.y * 0.6, q.z * 0.85), 3);
+    float cover = smoothstep(0.5, 0.68, base);
+    if (cover <= 0.0) {
+        return 0.0;
+    }
+    float h = p.y;
+    float topH = 0.25 + 0.75 * cover;
+    float profile = smoothstep(0.0, 0.16, h) * (1.0 - smoothstep(topH * 0.55, topH, h));
+    float dens = cover * profile;
+    if (dens <= 0.0) {
+        return 0.0;
+    }
+    // Fine lumps on near clouds; far away they'd be smaller than a pixel, so they fade out.
+    float near = exp(-away * 0.07);
+    float detail = art_fbm3(q * 2.8 + vec3(0.0, -t * 0.02, 0.0), oct);
+    dens -= (1.0 - detail) * (0.22 + 0.32 * near) * (1.0 - dens * 0.4);
+    return art_sat(dens * (2.2 + 0.8 * near));
+}
+
+vec3 art_skyVioletClouds(vec3 d, float t, float px, int detail) {
+    vec3 col = art_gradient(d.y, vec3(0.70, 0.46, 0.98), vec3(0.50, 0.25, 0.92), vec3(0.34, 0.11, 0.80));
+    vec3 sun = normalize(vec3(0.3, 0.8, 0.52));
+    float sd = max(dot(d, sun), 0.0);
+    col += vec3(0.4, 0.3, 0.45) * pow(sd, 6.0) * 0.25;
+    if (d.y < 0.01) {
+        return col;
+    }
+    int steps = detail >= 2 ? 40 : (detail == 1 ? 24 : 12);
+    int oct = detail >= 2 ? 4 : 3;
+    float bottom = 1.0;
+    float top = 2.6;
+    float t0 = bottom / d.y;
+    float far = 30.0;
+    if (t0 > far) {
+        return col;
+    }
+    float t1 = min(top / d.y, t0 + 6.5);
+    float stepLen = (t1 - t0) / float(steps);
+    float dist = t0 + stepLen * art_jitter;
+    float trans = 1.0;
+    vec3 light = vec3(0.0);
+    vec3 litCol = vec3(1.0, 0.96, 1.0);
+    vec3 shadeCol = vec3(0.50, 0.36, 0.84);
+    vec3 sunStep = vec3(sun.x * 0.8, sun.y / (top - bottom), sun.z * 0.8) * 0.11;
+    for (int i = 0; i < 48; i++) {
+        if (i >= steps || trans < 0.03) {
+            break;
+        }
+        vec3 pos = d * dist;
+        vec3 lp = vec3(pos.x * 0.8, (pos.y - bottom) / (top - bottom), pos.z * 0.8);
+        float dens = art_cumulus(lp, t, oct, dist);
+        if (dens > 0.004) {
+            // How much sunlight gets here through the cloud above.
+            float towardSun = 0.0;
+            for (int k = 1; k <= 3; k++) {
+                towardSun += art_cumulus(lp + sunStep * float(k), t, 2, dist + 3.0);
+            }
+            float sunlight = exp(-towardSun * 1.3);
+            float powder = 1.0 - exp(-dens * 6.0);
+            vec3 c = mix(shadeCol, litCol, art_sat(0.2 + 0.8 * sunlight * (0.5 + 0.5 * powder)));
+            c *= 0.82 + 0.18 * lp.y;
+            c += vec3(1.0, 0.9, 1.0) * pow(sd, 5.0) * sunlight * 0.25;
+            float a = 1.0 - exp(-dens * stepLen * 10.0);
+            light += trans * a * c;
+            trans *= 1.0 - a;
+        }
+        dist += stepLen;
+    }
+    vec3 clouds = light + col * trans;
+    // Distant clouds sink into the haze.
+    float haze = smoothstep(far * 0.3, far, t0);
+    return mix(clouds, col, haze);
+}
+
 // ---------------------------------------------------------------------------------------------- entry points
 
 // Where each sky's main object is (yaw, elevation in degrees); previews look that way.
@@ -1049,7 +1129,8 @@ vec2 art_hero(int sky) {
     if (sky == 14) return vec2(300.0, 22.0);
     if (sky == 15) return vec2(250.0, 18.0);
     if (sky == 16) return vec2(270.0, 10.0);
-    if (sky == 17) return vec2(180.0, 14.0);
+    if (sky == 17) return vec2(30.0, 26.0);
+    if (sky == 18) return vec2(180.0, 14.0);
     return vec2(180.0, 30.0);
 }
 
@@ -1109,7 +1190,7 @@ vec4 artlyrics_sky(vec3 dir, int sky, float t, float px, int detail, vec2 fragCo
     }
     vec3 d = normalize(dir);
     px = max(px, 1e-5);
-    art_jitter = art_hash12(fragCoord + fract(t) * 37.0);
+    art_jitter = fract(52.9829189 * fract(dot(fragCoord, vec2(0.06711056, 0.00583715))));
     vec3 c;
     if (sky == 1) c = art_skyMilkyWay(d, t, px, detail);
     else if (sky == 2) c = art_skyPlanet(d, t, px, detail);
@@ -1127,6 +1208,7 @@ vec4 artlyrics_sky(vec3 dir, int sky, float t, float px, int detail, vec2 fragCo
     else if (sky == 14) c = art_skyLanterns(d, t, px, detail);
     else if (sky == 15) c = art_skySakura(d, t, px, detail);
     else if (sky == 16) c = art_skyGolden(d, t, px, detail);
+    else if (sky == 17) c = art_skyVioletClouds(d, t, px, detail);
     else c = art_skySynth(d, t, px, detail);
     c = art_finish(c);
     c += vec3((art_hash12(fragCoord * 1.37 + 11.0) - 0.5) / 255.0);

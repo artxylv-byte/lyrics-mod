@@ -135,9 +135,11 @@ public final class ArtlyricsConfig {
 
 	/** How the song card looks. */
 	public enum CardStyle {
-		/** A slim bar: small cover, title and the lyric line. */
+		/** "Mini": a small pill with the cover and the line being sung, the current word highlighted. */
+		PILL,
+		/** "Compact": small cover, title, artist, progress and the lyric line. */
 		COMPACT,
-		/** A bigger player with a large cover, a record and moving bars. */
+		/** "Expanded": a big player with a record and moving bars, and the lyrics before and after the line. */
 		PLAYER;
 
 		public String translationKey() {
@@ -331,6 +333,11 @@ public final class ArtlyricsConfig {
 		style = look.style;
 		textEffect = look.effect;
 		animation = look.animation;
+		skyLook = look.skyLook;
+		uppercase = look.uppercase;
+		if (look.arc) {
+			arc = true;
+		}
 	}
 
 	public static ArtlyricsConfig load(Path path) {

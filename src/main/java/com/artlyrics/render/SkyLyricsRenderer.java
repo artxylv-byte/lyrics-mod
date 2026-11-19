@@ -142,7 +142,8 @@ public final class SkyLyricsRenderer {
 		float glow = config.textEffect == ArtlyricsConfig.TextEffect.GLOW ? config.glowStrength : 0.3f;
 		float daylight = 1f - SkyTheme.nightAmount(mc.level.getDayTime());
 		double seconds = (System.nanoTime() / 1e9) % 3600.0;
-		SkyTextGpu.composite((float) seconds, config.skyLook.ordinal(), glow, daylight, SKY_RADIANS_PER_PX * config.size);
+		float shadow = config.textEffect == ArtlyricsConfig.TextEffect.SHADOW ? 1f : 0f;
+		SkyTextGpu.composite((float) seconds, config.skyLook.ordinal(), glow, daylight, SKY_RADIANS_PER_PX * config.size, shadow);
 	}
 
 	/** Draws the lyrics; called from the main world pass with camera-relative positions. */
@@ -609,7 +610,10 @@ public final class SkyLyricsRenderer {
 				}
 			}
 			case SHADOW -> {
-				if (f.sky && f.effectColor == ArtlyricsConfig.EffectColor.AUTO) {
+				if (f.shaderGlow) {
+					// The sky shader casts a soft shadow of its own.
+					font.drawInBatch(text, x, y, argb, false, matrix, f.buffers, mode, 0, light);
+				} else if (f.sky && f.effectColor == ArtlyricsConfig.EffectColor.AUTO) {
 					font.drawInBatch(text, x, y, argb, true, matrix, f.buffers, mode, 0, light);
 				} else {
 					int shadow = f.effectColor == ArtlyricsConfig.EffectColor.AUTO ? ARGB.scaleRGB(argb, 0.25f) & 0xFFFFFF : effectRgb(f, rgb, false);

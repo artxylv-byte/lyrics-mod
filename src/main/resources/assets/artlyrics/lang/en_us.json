@@ -347,9 +347,9 @@
   "artlyrics.option.sky_stars": "Stars",
   "artlyrics.option.sky_stars.desc": "Twinkling stars across the sky",
   "artlyrics.option.card_style": "Style",
-  "artlyrics.option.card_style.desc": "A slim bar or a bigger player",
+  "artlyrics.option.card_style.desc": "Mini pill, compact card, or expanded with more lyrics",
   "artlyrics.card_style.compact": "Compact",
-  "artlyrics.card_style.player": "Player",
+  "artlyrics.card_style.player": "Expanded",
   "artlyrics.option.card_vinyl": "Record",
   "artlyrics.option.card_vinyl.desc": "A record peeks out and spins while the song plays",
   "artlyrics.option.card_bars": "Moving bars",
@@ -372,5 +372,9 @@
   "artlyrics.sky_look.starlight": "Starlight",
   "artlyrics.sky_look.smoke": "Smoke",
   "artlyrics.sky_look.neon": "Neon",
-  "artlyrics.sky_look.clean": "Clean"
+  "artlyrics.sky_look.clean": "Clean",
+  "artlyrics.sky.violet_clouds": "Violet Clouds",
+  "artlyrics.look.daydream": "Daydream",
+  "artlyrics.card_style.pill": "Mini",
+  "key.artlyrics.card_size": "Switch song card size"
 }

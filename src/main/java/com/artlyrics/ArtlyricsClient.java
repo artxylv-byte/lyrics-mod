@@ -51,6 +51,7 @@ public final class ArtlyricsClient implements ClientModInitializer {
 	private static KeyMapping nextSong;
 	private static KeyMapping previousSong;
 	private static KeyMapping likeSong;
+	private static KeyMapping cardSize;
 	/** How much one press of the "earlier / later" keys moves this song's lyrics. */
 	private static final int NUDGE_MS = 250;
 
@@ -107,6 +108,7 @@ public final class ArtlyricsClient implements ClientModInitializer {
 		nextSong = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.artlyrics.next", InputConstants.UNKNOWN.getValue(), CATEGORY));
 		previousSong = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.artlyrics.previous", InputConstants.UNKNOWN.getValue(), CATEGORY));
 		likeSong = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.artlyrics.like", InputConstants.UNKNOWN.getValue(), CATEGORY));
+		cardSize = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.artlyrics.card_size", InputConstants.UNKNOWN.getValue(), CATEGORY));
 
 		Updater updater = new Updater(version, installedJar(), config.updateRepository, config.updateBranches, userAgent);
 		updater.resumePending();
@@ -203,6 +205,16 @@ public final class ArtlyricsClient implements ClientModInitializer {
 			mod.settingsChanged();
 			config.save();
 			client.gui.setOverlayMessage(Component.translatable(config.displayMode.translationKey()), false);
+		}
+		while (cardSize.consumeClick()) {
+			// Mini -> Compact -> Expanded -> Mini
+			ArtlyricsConfig config = mod.config();
+			ArtlyricsConfig.CardStyle[] styles = ArtlyricsConfig.CardStyle.values();
+			config.cardStyle = styles[(config.cardStyle.ordinal() + 1) % styles.length];
+			config.songCard = true;
+			mod.settingsChanged();
+			config.save();
+			client.gui.setOverlayMessage(Component.translatable(config.cardStyle.translationKey()), false);
 		}
 		mediaKey(client, mod, playPause, MediaCommand.PLAY_PAUSE, "artlyrics.toast.play_pause");
 		mediaKey(client, mod, nextSong, MediaCommand.NEXT, "artlyrics.toast.next");

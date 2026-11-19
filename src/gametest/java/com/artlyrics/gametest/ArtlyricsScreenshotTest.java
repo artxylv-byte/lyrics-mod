@@ -109,7 +109,7 @@ public class ArtlyricsScreenshotTest implements FabricClientGameTest {
 					{"AURORA", "185", "24"}, {"ECLIPSE", "180", "32"}, {"BLACK_HOLE", "200", "32"}, {"NEBULA", "140", "36"},
 					{"TWIN_MOONS", "128", "28"}, {"MOON_HALO", "165", "30"}, {"METEOR_SHOWER", "40", "34"}, {"COMET", "244", "24"},
 					{"LIGHT_PILLARS", "10", "14"}, {"STAR_RIFT", "90", "35"}, {"SKY_LANTERNS", "300", "22"},
-					{"SAKURA_DUSK", "250", "18"}, {"GOLDEN_HOUR", "270", "10"}, {"SYNTH_SUNSET", "180", "14"}};
+					{"SAKURA_DUSK", "250", "18"}, {"GOLDEN_HOUR", "270", "10"}, {"VIOLET_CLOUDS", "30", "26"}, {"SYNTH_SUNSET", "180", "14"}};
 			for (String[] skyShot : skies) {
 				com.artlyrics.sky.SkyTheme theme = com.artlyrics.sky.SkyTheme.valueOf(skyShot[0]);
 				float yaw = Float.parseFloat(skyShot[1]);
@@ -143,6 +143,22 @@ public class ArtlyricsScreenshotTest implements FabricClientGameTest {
 				c.apply(Look.STARLIGHT);
 				c.skyLook = ArtlyricsConfig.SkyLook.CLEAN;
 			});
+			// Violet clouds with the Daydream look and the Mini card at the top.
+			shot(context, "07z-daydream-violet-clouds-mini", 4_200, -20f, c -> {
+				c.apply(Look.DAYDREAM);
+				c.sky = com.artlyrics.sky.SkyTheme.VIOLET_CLOUDS;
+				c.cardStyle = ArtlyricsConfig.CardStyle.PILL;
+				c.cardCorner = ArtlyricsConfig.CardCorner.TOP_CENTER;
+				c.skyHeight = 14f;
+			}, 30f);
+			context.runOnClient(client -> Artlyrics.get().tracker().seekDemo(4_400, false));
+			context.waitTicks(30);
+			context.takeScreenshot("07z-daydream-violet-clouds-mini-playing");
+			shot(context, "07z-expanded-card", 9_300, -14f, c -> {
+				c.apply(Look.STARLIGHT);
+				c.sky = com.artlyrics.sky.SkyTheme.TWIN_MOONS;
+				c.cardStyle = ArtlyricsConfig.CardStyle.PLAYER;
+			}, 128f);
 			world.getServer().runCommand("time set 6000");
 			shot(context, "07x-look-smoke-day", 4_200, -16f, c -> {
 				c.apply(Look.NOTEBOOK);
@@ -263,6 +279,8 @@ public class ArtlyricsScreenshotTest implements FabricClientGameTest {
 			c.sky = com.artlyrics.sky.SkyTheme.NONE;
 			c.cardStyle = defaults.cardStyle;
 			c.skyLook = defaults.skyLook;
+			c.uppercase = defaults.uppercase;
+			c.skyHeight = defaults.skyHeight;
 			setup.accept(c);
 			mod.settingsChanged();
 

@@ -34,6 +34,7 @@ class SkyShaderTest {
 		FUNCTIONS.put(SkyTheme.SKY_LANTERNS, "art_skyLanterns");
 		FUNCTIONS.put(SkyTheme.SAKURA_DUSK, "art_skySakura");
 		FUNCTIONS.put(SkyTheme.GOLDEN_HOUR, "art_skyGolden");
+		FUNCTIONS.put(SkyTheme.VIOLET_CLOUDS, "art_skyVioletClouds");
 		FUNCTIONS.put(SkyTheme.SYNTH_SUNSET, "art_skySynth");
 	}
 

@@ -53,6 +53,9 @@ public final class SkyTextGpu {
 	private static GpuBuffer params;
 	private static MultiBufferSource.BufferSource buffers;
 	private static Boolean valid;
+	/** Fog settings with no fog, so far-off words keep their colors (the sky shader adds its own haze). */
+	private static GpuBuffer noFog;
+	private static GpuBufferSlice savedFog;
 
 	private SkyTextGpu() {
 	}
@@ -80,6 +83,18 @@ public final class SkyTextGpu {
 		RenderSystem.getDevice().createCommandEncoder().clearColorAndDepthTextures(layer.getColorTexture(), 0, layer.getDepthTexture(), 1.0);
 		RenderSystem.outputColorTextureOverride = layer.getColorTextureView();
 		RenderSystem.outputDepthTextureOverride = layer.getDepthTextureView();
+		if (noFog == null) {
+			noFog = RenderSystem.getDevice().createBuffer(() -> "Artlyrics no fog", GpuBuffer.USAGE_UNIFORM | GpuBuffer.USAGE_COPY_DST, 48);
+			try (MemoryStack stack = MemoryStack.stackPush()) {
+				ByteBuffer data = Std140Builder.onStack(stack, 48)
+						.putVec4(0f, 0f, 0f, 0f)
+						.putFloat(1e7f).putFloat(2e7f).putFloat(1e7f).putFloat(2e7f).putFloat(2e7f).putFloat(2e7f)
+						.get();
+				RenderSystem.getDevice().createCommandEncoder().writeToBuffer(noFog.slice(), data);
+			}
+		}
+		savedFog = RenderSystem.getShaderFog();
+		RenderSystem.setShaderFog(noFog.slice());
 		if (buffers == null) {
 			buffers = MultiBufferSource.immediate(new ByteBufferBuilder(1 << 20));
 		}
@@ -92,6 +107,9 @@ public final class SkyTextGpu {
 		} finally {
 			RenderSystem.outputColorTextureOverride = null;
 			RenderSystem.outputDepthTextureOverride = null;
+			if (savedFog != null) {
+				RenderSystem.setShaderFog(savedFog);
+			}
 		}
 	}
 
@@ -102,8 +120,9 @@ public final class SkyTextGpu {
 	 * @param glow             how much light around the letters
 	 * @param daylight         0 at night .. 1 in full day
 	 * @param radiansPerFontPx how big the letters are
+	 * @param shadow           how much soft shadow to cast under the letters (0..1)
 	 */
-	public static void composite(float seconds, int look, float glow, float daylight, float radiansPerFontPx) {
+	public static void composite(float seconds, int look, float glow, float daylight, float radiansPerFontPx, float shadow) {
 		if (layer == null) {
 			return;
 		}
@@ -113,7 +132,7 @@ public final class SkyTextGpu {
 		try (MemoryStack stack = MemoryStack.stackPush()) {
 			ByteBuffer data = Std140Builder.onStack(stack, 32)
 					.putVec4(seconds, look, glow, daylight)
-					.putVec4(radiansPerFontPx, 0f, 0f, 0f)
+					.putVec4(radiansPerFontPx, shadow, 0f, 0f)
 					.get();
 			RenderSystem.getDevice().createCommandEncoder().writeToBuffer(params.slice(), data);
 		}

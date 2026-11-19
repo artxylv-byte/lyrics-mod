@@ -26,6 +26,7 @@ public enum SkyTheme {
 	SKY_LANTERNS(0x050814, 0x1A1530, 0x5A2A30, 90, null),
 	SAKURA_DUSK(0x8E7CC8, 0xD9A0D8, 0xFFC6D9, 40, null),
 	GOLDEN_HOUR(0x3A62B0, 0xA894A0, 0xFFA052, 0, null),
+	VIOLET_CLOUDS(0x561CC8, 0x8040EA, 0xB37AFA, 0, null),
 	SYNTH_SUNSET(0x1A0B3A, 0x5A1C78, 0xE0479E, 120, "synth_sun");
 
 	/** Dome colors from straight up to near the horizon. */

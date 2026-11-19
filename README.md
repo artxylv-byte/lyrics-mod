@@ -21,18 +21,23 @@ lyrics drawn in the world around you.
 - **Animations**: *Fade*, *Rise* (letters float up one by one), *Bloom*, *Typewriter*, *Sweep* (a karaoke fill that
   glides through each word as it's sung) and *Spotlight*,
   with adjustable speed, how long lines linger and how they leave (float away, fade or shrink).
-- **Looks**: one-click combinations of font, palette, effect and animation (Starlight, Petal, Neon, Campfire,
-  Notebook, Tide, Postcard, Ballroom, Blocky).
+- **Looks**: one-click combinations of font, palette, effect, animation and sky look (Starlight, Petal, Neon,
+  Campfire, Notebook, Tide, Postcard, Ballroom, Blocky, and Daydream: white pixel capitals curving gently across the
+  sky).
 - **Palettes** named after Minecraft materials (Amethyst, Cherry, Ember, Prismarine, Honey, Moss, Quartz, Redstone,
   Lapis, Emerald, Diamond, Copper, Crimson, Warped, Sculk, End, Snow, Sunset), the shifting Aurora, a flowing
   Rainbow, or your own colors.
 - **Menu themes**: Dark, Light, Midnight, Glass (see-through), Ocean, Forest and Sakura, for the settings and the
   song card.
-- **Song card**: a small card with the song's cover picture, title, artist, progress and the current line, in the
-  corner you pick, at the size and opacity you like. Animated covers (GIF) play on the card. The **Player** style
-  makes it bigger, with a record that slides out from behind the cover and spins, and bars that bounce along with
-  the sung words.
-- **Skies**: seventeen animated skies drawn by your graphics card (see below), with live previews, only at night
+- **Song card** in three sizes, in the corner you pick, at the size and opacity you like:
+  - **Mini**: a slim pill with the cover and the line being sung; the current word sits in a soft highlight that
+    glides from word to word, and little bars bounce along.
+  - **Compact**: cover, title, artist, progress and the current line.
+  - **Expanded**: a big player with a record that slides out from behind the cover and spins, bars that bounce with
+    the sung words, and the lyrics around the current line (the one before and the next ones), gliding up as the
+    song goes on.
+  Animated covers (GIF) play on the card. A key (unbound at first) switches between the sizes.
+- **Skies**: eighteen animated skies drawn by your graphics card (see below), with live previews, only at night
   if you like.
 - **Demo song**: a short built-in song so you can try every look without playing music.
 
@@ -160,6 +165,7 @@ live preview, drawn the same way.
 | Sky Lanterns | warm paper lanterns drifting up into the night |
 | Sakura Dusk | a pink evening sky with soft clouds and petals falling |
 | Golden Hour | a low sun with rays, glowing clouds and a warm sky |
+| Violet Clouds | a vivid violet sky full of big, puffy clouds drifting by, lit from above |
 | Synth Sunset | a striped neon sun sinking into a purple sky |
 
 - **Only at night** fades the sky in at dusk and away at dawn.
@@ -196,6 +202,7 @@ those apps can play, so they show as a still picture.
 | *unbound* | Switch between Skywriting and Hover |
 | `[` | This song's lyrics earlier (by 0.25 s per press, remembered per song) |
 | `]` | This song's lyrics later |
+| *unbound* | Switch the song card between Mini, Compact and Expanded |
 
 Change them under Options → Controls → Key Binds → Artlyrics.
 
@@ -210,10 +217,10 @@ screen, so turn on **Demo song** and watch while you adjust.
 | Now Playing | The current song and cover, whether lyrics were found, the line being sung, media controls, quick settings, detection status |
 | Lyrics | Mode, sky look (Starlight, Smoke, Neon, Clean), animation, animation speed, exit style, how long lines linger, sync offset, this song's timing, whole line at once, next-line preview and its visibility |
 | Holidays | Holiday themes (seasons / always nearest / off), region, holiday colors, decorations, try a theme, what's on now and coming up |
-| Skies | Seventeen GPU-drawn skies with live previews, only at night, strength, movement, stars, detail |
+| Skies | Eighteen GPU-drawn skies with live previews, only at night, strength, movement, stars, detail |
 | Look | Menu theme, looks, fonts, palettes (with a custom color editor), text effect, glow, size, opacity, line width, bold, italic, ALL CAPS |
 | Placement | Skywriting height, distance, scatter, drift and arc; hover distance, height and how quickly it follows your view |
-| Song Card | Show or hide, style (Compact or Player, with the record and moving bars), position, size, background, artist, progress, next-line preview, album cover, big cover, animated covers, find covers online, covers folder, with a live preview |
+| Song Card | Show or hide, size (Mini, Compact or Expanded, with the record and moving bars), position, size, background, artist, progress, next-line preview, album cover, big cover, animated covers, find covers online, covers folder, with a live preview |
 | Music | Preferred player, media controls, Spotify account, updates |
 | Sources | Look lyrics up again, lyrics sources (your folder, LRCLIB, NetEase, lyrics without timing), covers online, covers folder |
 

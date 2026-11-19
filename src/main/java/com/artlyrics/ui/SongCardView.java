@@ -30,6 +30,13 @@ public final class SongCardView {
 	/** How far the record comes out from behind the cover while playing. */
 	private static final int VINYL_OUT = 20;
 	private static final int BARS = 20;
+	/** Height of the Mini pill. */
+	private static final int PILL_H = 20;
+	private static final int PILL_ART = 14;
+	private static final int PILL_MIN_W = 150;
+	private static final int PILL_MAX_W = 250;
+	/** Expanded: lines shown after the current one. */
+	private static final int NEXT_LINES = 2;
 	private static final int MARGIN = 6;
 	private static final int PAD = 6;
 	private static final int ART = 22;
@@ -58,6 +65,17 @@ public final class SongCardView {
 	private final float[] bars = new float[BARS];
 	/** Milliseconds since the word being sung started, for the bars to jump on. */
 	private long beatAgeMs = Long.MAX_VALUE;
+	/** Mini: the pill's width, the highlight under the current word and how far long lines are scrolled. */
+	private float pillWidth = -1;
+	private float chipX = Float.NaN;
+	private float chipW;
+	private float pillScroll;
+	private List<Piece> pillPieces = List.of();
+	private int pillActive = -1;
+	/** Expanded: the lines around the current one, and how far the list still has to glide up. */
+	private @Nullable String previousLine;
+	private final List<String> nextLines = new ArrayList<>();
+	private float listScroll;
 
 	// Content measured for the frame being drawn.
 	private List<List<Piece>> rows = List.of();
@@ -91,7 +109,7 @@ public final class SongCardView {
 
 		float s = config.cardScale;
 		int height = measure(c, host, now, false);
-		int w = Math.round(width(config) * s);
+		int w = Math.round(cardWidth(config) * s);
 		int h = Math.round(height * s);
 		int x = switch (config.cardCorner) {
 			case TOP_LEFT, BOTTOM_LEFT -> MARGIN;
@@ -112,7 +130,7 @@ public final class SongCardView {
 		c.scale(s);
 		float alpha = c.alpha();
 		c.setAlpha(alpha * eased);
-		drawCard(c, host, lastTrack, 0, 0, width(config), height, now);
+		drawCard(c, host, lastTrack, 0, 0, cardWidth(config), height, now);
 		c.setAlpha(alpha);
 		c.pop();
 	}
@@ -126,16 +144,27 @@ public final class SongCardView {
 			tick(now);
 		}
 		ArtlyricsConfig config = host.config();
+		if (config.cardStyle == ArtlyricsConfig.CardStyle.PILL) {
+			return measurePill(c, host, now);
+		}
 		computeContent(c, host, width(config) - PAD * 2, now);
 		int target = !rows.isEmpty() ? rows.size() : status != null ? 1 : 0;
 		shownRows = shownRows < 0 ? target : shownRows + (target - shownRows) * Easing.approach(dt, 10f);
 		int h = PAD + art(config) + PAD + (config.cardProgress ? ROW : 0);
+		if (config.cardStyle == ArtlyricsConfig.CardStyle.PLAYER && !rows.isEmpty()) {
+			// Expanded: the line before, the current one and the next ones.
+			return h + Math.round((1 + shownRows + nextLines.size()) * ROW) + PAD - 2;
+		}
 		return h + Math.round(shownRows * ROW) + (shownRows > 0.05f ? PAD - 2 : 0);
 	}
 
 	/** Draws the card with its top-left at (x, y), unscaled, using the content from {@link #measure}. */
 	public void drawCard(Canvas c, UiHost host, NowPlaying track, int x, int y, int width, int height, long now) {
 		ArtlyricsConfig config = host.config();
+		if (config.cardStyle == ArtlyricsConfig.CardStyle.PILL) {
+			drawPill(c, host, track, x, y, width, now);
+			return;
+		}
 		Palette palette = config.palette();
 		int accent = Theme.accent(palette.from());
 
@@ -191,7 +220,225 @@ public final class SongCardView {
 			drawProgress(c, track, host.positionMs(), x + PAD, cy, width - PAD * 2, accent, palette);
 			cy += ROW;
 		}
-		drawLyrics(c, x + PAD, cy, width - PAD * 2, cardFont(config.font), now);
+		if (player && !rows.isEmpty()) {
+			drawLyricList(c, config, x + PAD, cy, width - PAD * 2, now);
+		} else {
+			drawLyrics(c, x + PAD, cy, width - PAD * 2, cardFont(config.font), now);
+		}
+	}
+
+	/** The card's width now (the Mini pill grows and shrinks with the line). */
+	public int cardWidth(ArtlyricsConfig config) {
+		if (config.cardStyle == ArtlyricsConfig.CardStyle.PILL) {
+			return Math.round(pillWidth < 0 ? PILL_MIN_W : pillWidth);
+		}
+		return width(config);
+	}
+
+	// ---- Mini ----
+
+	private int measurePill(Canvas c, UiHost host, long now) {
+		ArtlyricsConfig config = host.config();
+		Lyrics lyrics = host.lyrics();
+		long timeMs = host.lyricsTimeMs();
+		long lingerMs = Math.round(config.lingerSeconds * 1000);
+		TextFont font = cardFont(config.font);
+		List<Piece> pieces = new ArrayList<>();
+		int active = -1;
+		beatAgeMs = Long.MAX_VALUE;
+		int key = -1;
+		if (lyrics != null) {
+			int index = lyrics.lineIndexAt(timeMs);
+			if (index >= 0 && !lyrics.lines().get(index).isBlank() && timeMs < lyrics.visibleEnd(index, lingerMs)) {
+				LyricLine line = lyrics.lines().get(index);
+				key = index;
+				active = line.wordIndexAt(timeMs);
+				if (active >= 0) {
+					beatAgeMs = Math.max(0, timeMs - line.words().get(active).startMs());
+				}
+				for (int i = 0; i < line.words().size(); i++) {
+					LyricWord w = line.words().get(i);
+					String text = config.uppercase ? w.text().toUpperCase(Locale.ROOT) : w.text();
+					int color = timeMs >= w.startMs() ? Theme.TEXT : Theme.MUTED;
+					pieces.add(new Piece(text, c.textWidth(text, font), color));
+				}
+			}
+		}
+		if (key != lineKey) {
+			lineKey = key;
+			lineChangedNanos = now;
+			pillScroll = 0f;
+			chipX = Float.NaN;
+		}
+		pillPieces = pieces;
+		pillActive = active;
+		int textW = 0;
+		if (pieces.isEmpty()) {
+			NowPlaying track = host.track();
+			String fallback = track == null ? "" : track.title() + (track.artist().isBlank() ? "" : "  ·  " + track.artist());
+			textW = c.textWidth(fallback, FONT);
+		} else {
+			for (Piece p : pieces) {
+				textW += p.width;
+			}
+		}
+		int target = Math.max(PILL_MIN_W, Math.min(PILL_MAX_W, 3 + PILL_ART + 6 + textW + 6 + 12 + 7));
+		pillWidth = pillWidth < 0 ? target : pillWidth + (target - pillWidth) * Easing.approach(dt, 6f);
+		return PILL_H;
+	}
+
+	/** Mini: cover, the line being sung (the current word sits in a soft highlight) and little moving bars. */
+	private void drawPill(Canvas c, UiHost host, NowPlaying track, int x, int y, int width, long now) {
+		ArtlyricsConfig config = host.config();
+		Palette palette = config.palette();
+		int accent = Theme.accent(palette.from());
+		Theme.apply(config.menuTheme);
+		int h = PILL_H;
+		Draw.roundRect(c, x, y, x + width, y + h, h / 2, Draw.withAlpha(Theme.CARD_BG, config.cardOpacity));
+		Draw.roundOutline(c, x, y, x + width, y + h, h / 2, Draw.withAlpha(Theme.HIGHLIGHT, 0.08f));
+		double seconds = now / 1e9;
+
+		int ax = x + 3;
+		int ay = y + 3;
+		c.gradientV(ax, ay, ax + PILL_ART, ay + PILL_ART, 0xFF000000 | palette.colorAt(0f, seconds), 0xFF000000 | palette.colorAt(1f, seconds));
+		c.icon("note", ax + 2, ay + 2, 0xE0FFFFFF);
+		drawCover(c, host, config, ax, ay, PILL_ART, now);
+
+		int eqW = 12;
+		int ex = x + width - 7 - eqW;
+		drawPillBars(c, track, palette, ex, y + 5, eqW, h - 10, seconds);
+
+		int tx = ax + PILL_ART + 6;
+		int tw = ex - 5 - tx;
+		int ty = y + (h - 8) / 2;
+		TextFont font = cardFont(config.font);
+		if (pillPieces.isEmpty()) {
+			String title = Draw.ellipsize(c, track.title(), FONT, tw);
+			c.text(title, FONT, tx, ty, Theme.TEXT, false);
+			int used = c.textWidth(title, FONT);
+			if (!track.artist().isBlank() && used + 20 < tw) {
+				c.text(Draw.ellipsize(c, "  ·  " + track.artist(), FONT, tw - used), FONT, tx + used, ty, Theme.MUTED, false);
+			}
+			return;
+		}
+		// Long lines scroll so the word being sung stays in view.
+		int total = 0;
+		int activeX = 0;
+		int activeW = 0;
+		for (int i = 0; i < pillPieces.size(); i++) {
+			if (i == pillActive) {
+				activeX = total;
+				activeW = pillPieces.get(i).width;
+			}
+			total += pillPieces.get(i).width;
+		}
+		float targetScroll = total <= tw ? 0f : Math.max(0f, Math.min(total - tw, activeX + activeW - tw * 0.7f));
+		pillScroll += (targetScroll - pillScroll) * Easing.approach(dt, 5f);
+		float fade = Easing.inOutSine((now - lineChangedNanos) / 280_000_000f);
+		float alpha = c.alpha();
+		if (pillActive >= 0) {
+			// The highlight glides from word to word.
+			String word = pillPieces.get(pillActive).text.stripTrailing();
+			float targetX = tx + activeX - pillScroll - 2f;
+			float targetW = c.textWidth(word, font) + 4f;
+			if (Float.isNaN(chipX)) {
+				chipX = targetX;
+				chipW = targetW;
+			}
+			chipX += (targetX - chipX) * Easing.approach(dt, 14f);
+			chipW += (targetW - chipW) * Easing.approach(dt, 14f);
+			c.setAlpha(alpha * fade);
+			Draw.roundRect(c, Math.round(chipX), ty - 2, Math.round(chipX + chipW), ty + 10, 3, Draw.withAlpha(accent & 0xFFFFFF, 0.38f));
+		}
+		float px = tx - pillScroll;
+		for (int i = 0; i < pillPieces.size(); i++) {
+			Piece p = pillPieces.get(i);
+			float x0 = px;
+			float x1 = px + p.width;
+			px = x1;
+			if (x1 <= tx || x0 >= tx + tw) {
+				continue;
+			}
+			// Words leaving the edges fade instead of being cut.
+			float edge = Math.min(Easing.clamp01((x0 - tx + 6f) / 6f), Easing.clamp01((tx + tw - x1 + 6f) / 6f));
+			c.setAlpha(alpha * fade * edge);
+			int color = i == pillActive ? 0xFFFFFFFF : p.color;
+			c.text(p.text, font, Math.round(x0), ty, color, false);
+		}
+		c.setAlpha(alpha);
+		if (config.cardProgress && track.durationMs() > 0) {
+			float pr = Math.min(1f, host.positionMs() / (float) track.durationMs());
+			int bx0 = x + h / 2;
+			int bx1 = x + width - h / 2;
+			int filled = bx0 + Math.round((bx1 - bx0) * pr);
+			Draw.gradientH(c, bx0, y + h - 2, Math.max(bx0 + 1, filled), y + h - 1, 0xC0000000 | palette.from(), 0xC0000000 | palette.to());
+		}
+	}
+
+	/** Four little bars that bounce with the words. */
+	private void drawPillBars(Canvas c, NowPlaying track, Palette palette, int x, int y, int width, int height, double seconds) {
+		float kick = beatAgeMs == Long.MAX_VALUE ? 0f : (float) Math.exp(-beatAgeMs / 240.0);
+		float energy = track.playing() ? 0.35f + 0.65f * kick : 0.12f;
+		for (int i = 0; i < 4; i++) {
+			double wave = 0.5 + 0.5 * Math.sin(seconds * (5.0 + i * 1.7) + i * 2.1);
+			float target = Math.max(0.15f, energy * (0.4f + 0.6f * (float) wave));
+			float speed = target > bars[i] ? 18f : 6f;
+			bars[i] += (target - bars[i]) * Easing.approach(dt, speed);
+			int bh = Math.max(1, Math.round(bars[i] * height));
+			int bx = x + i * 3;
+			int color = 0xFF000000 | palette.colorAt(i / 3f, seconds);
+			c.fill(bx, y + height - bh, bx + 2, y + height, color);
+		}
+	}
+
+	// ---- Expanded ----
+
+	/** Expanded: the line before (faint), the current one (sung words lit) and the next lines, gliding up as the song goes on. */
+	private void drawLyricList(Canvas c, ArtlyricsConfig config, int x, int y, int width, long now) {
+		TextFont font = cardFont(config.font);
+		listScroll += (0f - listScroll) * Easing.approach(dt, 7f);
+		float alpha = c.alpha();
+		float top = y;
+		float bottom = y + (1 + shownRows + nextLines.size()) * ROW;
+		float ry = y + 2 + listScroll;
+		if (previousLine != null) {
+			drawListLine(c, previousLine, font, x, ry, width, Theme.FAINT, 0.55f, top, bottom, alpha);
+		}
+		ry += ROW;
+		for (int r = 0; r < rows.size(); r++) {
+			float fit = Easing.clamp01(shownRows - r);
+			float edge = edgeFade(ry, top, bottom);
+			c.setAlpha(alpha * fit * edge);
+			int px = x;
+			for (Piece piece : rows.get(r)) {
+				c.text(piece.text, font, px, Math.round(ry), piece.color, false);
+				px += piece.width;
+			}
+			ry += ROW;
+		}
+		c.setAlpha(alpha);
+		float dim = 0.5f;
+		for (String next : nextLines) {
+			drawListLine(c, next, font, x, ry, width, Theme.FAINT, dim, top, bottom, alpha);
+			ry += ROW;
+			dim *= 0.6f;
+		}
+		c.setAlpha(alpha);
+	}
+
+	private void drawListLine(Canvas c, String text, TextFont font, int x, float y, int width, int color, float strength,
+							  float top, float bottom, float alpha) {
+		float edge = edgeFade(y, top, bottom);
+		if (edge <= 0.01f) {
+			return;
+		}
+		c.setAlpha(alpha * strength * edge);
+		c.text(Draw.ellipsize(c, text, font, width), font, x, Math.round(y), color, false);
+	}
+
+	/** Lines gliding past the top or bottom of the list fade out instead of spilling over. */
+	private static float edgeFade(float y, float top, float bottom) {
+		return Math.min(Easing.clamp01((y - top + 4f) / 6f), Easing.clamp01((bottom - (y + 8f) + 4f) / 6f));
 	}
 
 	/** The holiday's decorations drifting softly over the card, behind the text. */
@@ -405,9 +652,29 @@ public final class SongCardView {
 			}
 		}
 		if (key != lineKey) {
+			// Expanded: the list glides up by one line when the song moves on.
+			if (lineKey != Integer.MIN_VALUE && key >= 0) {
+				listScroll = ROW;
+			}
 			lineKey = key;
 			lineChangedNanos = now;
 			previousRows = rows;
+		}
+		previousLine = null;
+		nextLines.clear();
+		if (lyrics != null && line != null) {
+			int at = key >= 100_000 ? key - 100_000 : key;
+			for (int i = at - 1; i >= 0; i--) {
+				if (!lyrics.lines().get(i).isBlank()) {
+					previousLine = listText(lyrics.lines().get(i), config);
+					break;
+				}
+			}
+			for (int i = at + 1; i < lyrics.lines().size() && nextLines.size() < NEXT_LINES; i++) {
+				if (!lyrics.lines().get(i).isBlank()) {
+					nextLines.add(listText(lyrics.lines().get(i), config));
+				}
+			}
 		}
 		if (line == null) {
 			rows = List.of();
@@ -416,6 +683,11 @@ public final class SongCardView {
 			rows = wrap(c, line, config, timeMs, width, live, cardFont(config.font), now);
 			status = null;
 		}
+	}
+
+	private static String listText(LyricLine line, ArtlyricsConfig config) {
+		String text = line.text();
+		return config.uppercase ? text.toUpperCase(Locale.ROOT) : text;
 	}
 
 	/** Wraps a line into at most two rows; long lines start late enough to include the word being sung. */

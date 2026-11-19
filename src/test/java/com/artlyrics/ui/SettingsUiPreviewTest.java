@@ -103,6 +103,29 @@ class SettingsUiPreviewTest {
 	}
 
 	@Test
+	void renderMiniAndExpandedCards() throws Exception {
+		for (com.artlyrics.config.ArtlyricsConfig.CardStyle style : new com.artlyrics.config.ArtlyricsConfig.CardStyle[] {
+				com.artlyrics.config.ArtlyricsConfig.CardStyle.PILL, com.artlyrics.config.ArtlyricsConfig.CardStyle.PLAYER}) {
+			FakeHost host = new FakeHost();
+			host.config.apply(Look.DAYDREAM);
+			host.config.cardStyle = style;
+			host.config.cardCorner = com.artlyrics.config.ArtlyricsConfig.CardCorner.TOP_CENTER;
+			JavaCanvas canvas = new JavaCanvas(W, H, SCALE);
+			canvas.paintBackdrop();
+			SongCardView view = new SongCardView();
+			long t = 1_000_000_000L;
+			for (int i = 0; i < 30; i++) {
+				view.drawHud(i == 29 ? canvas : new JavaCanvas(W, H, 1), host, t + i * 50_000_000L);
+			}
+			canvas.save(OUT.resolve("card-" + style.name().toLowerCase() + "-daydream.png"));
+		}
+		FakeHost mini = new FakeHost();
+		mini.config.cardStyle = com.artlyrics.config.ArtlyricsConfig.CardStyle.PILL;
+		render(mini, SettingsUi.Page.CARD, 0, "card-page-mini", W, H);
+		render(new FakeHost(), SettingsUi.Page.LOOK, 0, "look-page-daydream", W, H);
+	}
+
+	@Test
 	void renderSkiesAndPlayerCardPages() throws Exception {
 		FakeHost skies = new FakeHost();
 		skies.config.sky = com.artlyrics.sky.SkyTheme.AURORA;

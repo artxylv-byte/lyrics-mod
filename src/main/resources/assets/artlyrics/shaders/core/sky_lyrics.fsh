@@ -12,7 +12,7 @@ uniform sampler2D Sampler0;
 layout(std140) uniform ArtlyricsLyrics {
     // x: seconds, y: look (0 starlight, 1 smoke, 2 neon, 3 clean), z: glow strength, w: daylight (0..1)
     vec4 LyricParams;
-    // x: radians one font pixel covers
+    // x: radians one font pixel covers, y: soft shadow (0..1)
     vec4 LyricParams2;
 };
 
@@ -89,9 +89,11 @@ void main() {
         rgb = tube * flick + halo * glow * mix(1.4, 0.7, day) * flick;
         a = core.a * 0.97 + g2.a * 0.22 * day;
     } else if (look == 3) {
-        // Clean: just the words, softened, with a faint light around them.
-        rgb = core.rgb + (g1.rgb * 0.35 + g2.rgb * 0.2) * glow;
-        a = core.a;
+        // Clean: just the words, crisp, with a faint light around them.
+        vec4 sharp = texture(Sampler0, suv) * 0.8 + ringAvg(suv, texel, 0.35 * fp, 0.0) * 0.2;
+        rgb = sharp.rgb + (g1.rgb * 0.3 + g2.rgb * 0.15) * glow;
+        a = sharp.a;
+        core = sharp;
     } else {
         // Starlight: letters made of light, glowing into the sky, with specks that twinkle.
         vec3 halo = g1.rgb * 0.55 + g2.rgb * 0.42 + g3.rgb * 0.3;
@@ -101,6 +103,15 @@ void main() {
         // By day the light around the letters is lost in the bright sky, so they get deeper and a soft shade.
         rgb = core.rgb * mix(1.08, 0.82, day) + vec3(1.0, 0.97, 0.9) * twinkle * core.a * 0.85 + halo * glow * mix(1.7, 0.45, day);
         a = core.a * 0.95 + g2.a * 0.28 * day;
+    }
+
+    // A soft shadow just below and to the right of the letters, so light words read on light clouds.
+    float shadowAmt = LyricParams2.y;
+    if (shadowAmt > 0.0) {
+        vec2 o = vec2(-0.9, 0.9) * fp * texel;
+        float sh = texture(Sampler0, suv + o).a * 0.5 + ringAvg(suv + o, texel, 0.9 * fp, 0.4).a * 0.5;
+        float sa = sh * 0.55 * shadowAmt * (1.0 - a);
+        a += sa;
     }
 
     // Far down near the horizon the words sink into the haze, like anything in the sky.

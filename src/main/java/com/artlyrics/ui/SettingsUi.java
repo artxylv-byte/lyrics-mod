@@ -469,6 +469,9 @@ public final class SettingsUi {
 				Draw.roundOutline(c, tx, ty, tx + tileW, ty + tileH, 5, tint);
 			}
 			String name = host.tr(look.translationKey());
+			if (look.uppercase) {
+				name = name.toUpperCase(Locale.ROOT);
+			}
 			int nw = c.textWidth(name, look.font);
 			c.push();
 			c.translate(tx + (tileW - nw * 1.25f) / 2f, ty + 6);
@@ -696,7 +699,7 @@ public final class SettingsUi {
 			int h = cardPreview.measure(c, previewHost, now, true);
 			int areaH = h + 16;
 			Draw.roundRect(c, cx, y, cx + cw, y + areaH, 6, Theme.PREVIEW_BG);
-			int cardW = SongCardView.width(config);
+			int cardW = cardPreview.cardWidth(config);
 			float s = Math.min(1f, (cw - 16) / (float) cardW);
 			c.push();
 			c.translate(cx + (cw - cardW * s) / 2f, y + 8);
