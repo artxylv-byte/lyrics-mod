@@ -410,6 +410,10 @@ public final class SettingsUi {
 		ArtlyricsConfig config = host.config();
 		y = rowSelector(c, "mode", "artlyrics.option.mode", y, config.displayMode.ordinal(),
 				labels(ArtlyricsConfig.DisplayMode.values(), m -> m.translationKey()), i -> config.displayMode = ArtlyricsConfig.DisplayMode.values()[i]);
+		if (config.displayMode == ArtlyricsConfig.DisplayMode.SKYWRITING) {
+			y = rowSelector(c, "skyLook", "artlyrics.option.sky_look", y, config.skyLook.ordinal(),
+					labels(ArtlyricsConfig.SkyLook.values(), l -> l.translationKey()), i -> config.skyLook = ArtlyricsConfig.SkyLook.values()[i]);
+		}
 		y = rowSelector(c, "animation", "artlyrics.option.animation", y, config.animation.ordinal(),
 				labels(ArtlyricsConfig.Animation.values(), a -> a.translationKey()), i -> config.animation = ArtlyricsConfig.Animation.values()[i]);
 		y = rowSlider(c, "speed", "artlyrics.option.speed", y, config.animationSpeed, 0.5f, 2f,

@@ -2,6 +2,8 @@ package com.artlyrics.render;
 
 import com.artlyrics.Artlyrics;
 import com.artlyrics.compat.Mc;
+import com.artlyrics.compat.SkyTextGpu;
+import com.artlyrics.sky.SkyTheme;
 import com.artlyrics.config.ArtlyricsConfig;
 import com.artlyrics.config.Palette;
 import com.artlyrics.holiday.Decorations;
@@ -35,6 +37,10 @@ import java.util.List;
  *
  * <p>Hover: lines hang a few blocks away above the crosshair, trail your view smoothly and are drawn on top
  * of everything.
+ *
+ * <p>Where the graphics card can, skywriting is drawn into a layer of its own and then laid into the sky by a
+ * shader ({@link SkyTextGpu}), right after the sky and before the land and clouds: the words get light around
+ * them and sink into the haze near the horizon, and hills, trees and clouds pass in front of them.
  */
 public final class SkyLyricsRenderer {
 	private static final long EXIT_NANOS = 750_000_000L;
@@ -49,7 +55,7 @@ public final class SkyLyricsRenderer {
 	private static final float PREVIEW_SCALE = 0.8f;
 
 	/** Angular size of one font pixel, in radians, at size 1.0. */
-	private static final float SKY_RADIANS_PER_PX = 0.006f;
+	private static final float SKY_RADIANS_PER_PX = 0.0072f;
 	private static final float HOVER_RADIANS_PER_PX = 0.0068f;
 
 	private static final int[][] RING_1 = {{-1, -1}, {0, -1}, {1, -1}, {-1, 0}, {1, 0}, {-1, 1}, {0, 1}, {1, 1}};
@@ -63,6 +69,8 @@ public final class SkyLyricsRenderer {
 	private boolean hoverInitialized;
 	private long lastFrameNanos;
 	private boolean hasFrame;
+	/** Whether this frame's skywriting was already drawn into the sky. */
+	private boolean drawnInSky;
 
 	private static final class ShownLine {
 		final Lyrics lyrics;
@@ -105,10 +113,47 @@ public final class SkyLyricsRenderer {
 		PoseStack poseStack;
 		MultiBufferSource buffers;
 		Font font;
+		/** The shader adds the glow, so the letters are drawn without their glow copies. */
+		boolean shaderGlow;
+	}
+
+	/** Draws skywriting into the sky; called after the sky, before any land is drawn. */
+	public void renderSkyStage() {
+		Artlyrics mod = Artlyrics.get();
+		Minecraft mc = Minecraft.getInstance();
+		drawnInSky = false;
+		if (mod == null || mc.level == null) {
+			return;
+		}
+		ArtlyricsConfig config = mod.config();
+		if (config.displayMode != ArtlyricsConfig.DisplayMode.SKYWRITING || !SkyTextGpu.available()) {
+			return;
+		}
+		drawnInSky = true;
+		MultiBufferSource.BufferSource layer = SkyTextGpu.begin();
+		try {
+			draw(new PoseStack(), layer, true);
+		} finally {
+			SkyTextGpu.end();
+		}
+		if (shown.isEmpty()) {
+			return;
+		}
+		float glow = config.textEffect == ArtlyricsConfig.TextEffect.GLOW ? config.glowStrength : 0.3f;
+		float daylight = 1f - SkyTheme.nightAmount(mc.level.getDayTime());
+		double seconds = (System.nanoTime() / 1e9) % 3600.0;
+		SkyTextGpu.composite((float) seconds, config.skyLook.ordinal(), glow, daylight, SKY_RADIANS_PER_PX * config.size);
 	}
 
 	/** Draws the lyrics; called from the main world pass with camera-relative positions. */
 	public void render(PoseStack poseStack, MultiBufferSource buffers) {
+		if (drawnInSky) {
+			return; // already in the sky this frame
+		}
+		draw(poseStack, buffers, false);
+	}
+
+	private void draw(PoseStack poseStack, MultiBufferSource buffers, boolean intoSky) {
 		Artlyrics mod = Artlyrics.get();
 		Minecraft mc = Minecraft.getInstance();
 		if (mod == null || mc.level == null) {
@@ -140,6 +185,7 @@ public final class SkyLyricsRenderer {
 		f.poseStack = poseStack;
 		f.buffers = buffers;
 		f.font = mc.font;
+		f.shaderGlow = intoSky;
 		double seconds = now / 1e9;
 		ShownLine newest = null;
 		for (ShownLine line : shown) {
@@ -537,8 +583,8 @@ public final class SkyLyricsRenderer {
 
 		switch (f.effect) {
 			case GLOW -> {
-				// A soft halo: faint copies in a lighter tint around the letters.
-				if (f.glow > 0.01f) {
+				// A soft halo: faint copies in a lighter tint around the letters (the sky shader makes its own).
+				if (f.glow > 0.01f && !f.shaderGlow) {
 					int halo = effectRgb(f, rgb, true);
 					int inner = ARGB.color(alpha * f.glow * 0.16f, halo);
 					int outer = ARGB.color(alpha * f.glow * 0.09f, halo);

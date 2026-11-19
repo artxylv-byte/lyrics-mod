@@ -366,5 +366,11 @@
   "artlyrics.option.sky_detail.desc": "Lower it if the game slows down",
   "artlyrics.sky_detail.low": "Low",
   "artlyrics.sky_detail.medium": "Medium",
-  "artlyrics.sky_detail.high": "High"
+  "artlyrics.sky_detail.high": "High",
+  "artlyrics.option.sky_look": "Sky look",
+  "artlyrics.option.sky_look.desc": "How the words look up in the sky",
+  "artlyrics.sky_look.starlight": "Starlight",
+  "artlyrics.sky_look.smoke": "Smoke",
+  "artlyrics.sky_look.neon": "Neon",
+  "artlyrics.sky_look.clean": "Clean"
 }

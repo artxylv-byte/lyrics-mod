@@ -2,6 +2,7 @@ package com.artlyrics;
 
 import com.artlyrics.compat.Mc;
 import com.artlyrics.compat.SkyGpu;
+import com.artlyrics.compat.SkyTextGpu;
 import com.artlyrics.config.ArtlyricsConfig;
 import com.artlyrics.config.TimingOffsets;
 import com.artlyrics.cover.CoverArt;
@@ -85,7 +86,11 @@ public final class ArtlyricsClient implements ClientModInitializer {
 		SkyLyricsRenderer renderer = new SkyLyricsRenderer();
 		SkyArtRenderer sky = new SkyArtRenderer();
 		SkyGpu.register();
-		Mc.onSkyStage(sky::renderSkyStage);
+		SkyTextGpu.register();
+		Mc.onSkyStage(() -> {
+			sky.renderSkyStage();
+			renderer.renderSkyStage(); // skywriting goes into the sky, in front of it
+		});
 		Mc.onWorldRender((pose, buffers) -> {
 			sky.render(pose, buffers); // behind the lyrics
 			renderer.render(pose, buffers);

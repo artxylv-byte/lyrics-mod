@@ -108,18 +108,7 @@ public final class SkyGpu {
 		if (!worldAvailable()) {
 			return;
 		}
-		if (triangle == null) {
-			try (ByteBufferBuilder bytes = ByteBufferBuilder.exactlySized(3 * DefaultVertexFormat.POSITION.getVertexSize())) {
-				BufferBuilder builder = new BufferBuilder(bytes, VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION);
-				builder.addVertex(-1f, -1f, 0f);
-				builder.addVertex(3f, -1f, 0f);
-				builder.addVertex(-1f, 3f, 0f);
-				try (MeshData mesh = builder.buildOrThrow()) {
-					triangle = RenderSystem.getDevice().createBuffer(() -> "Artlyrics sky triangle", GpuBuffer.USAGE_VERTEX, mesh.vertexBuffer());
-				}
-			}
-			params = RenderSystem.getDevice().createBuffer(() -> "Artlyrics sky", GpuBuffer.USAGE_UNIFORM | GpuBuffer.USAGE_COPY_DST, 32);
-		}
+		ensureBuffers();
 		try (MemoryStack stack = MemoryStack.stackPush()) {
 			ByteBuffer data = Std140Builder.onStack(stack, 32)
 					.putVec4(seconds, sky, strength, stars ? 1f : 0f)
@@ -139,6 +128,28 @@ public final class SkyGpu {
 			pass.setVertexBuffer(0, triangle);
 			pass.draw(0, 3);
 		}
+	}
+
+	private static void ensureBuffers() {
+		if (triangle != null) {
+			return;
+		}
+		try (ByteBufferBuilder bytes = ByteBufferBuilder.exactlySized(3 * DefaultVertexFormat.POSITION.getVertexSize())) {
+			BufferBuilder builder = new BufferBuilder(bytes, VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION);
+			builder.addVertex(-1f, -1f, 0f);
+			builder.addVertex(3f, -1f, 0f);
+			builder.addVertex(-1f, 3f, 0f);
+			try (MeshData mesh = builder.buildOrThrow()) {
+				triangle = RenderSystem.getDevice().createBuffer(() -> "Artlyrics sky triangle", GpuBuffer.USAGE_VERTEX, mesh.vertexBuffer());
+			}
+		}
+		params = RenderSystem.getDevice().createBuffer(() -> "Artlyrics sky", GpuBuffer.USAGE_UNIFORM | GpuBuffer.USAGE_COPY_DST, 32);
+	}
+
+	/** One triangle covering the screen (positions in clip space). */
+	static GpuBuffer screenTriangle() {
+		ensureBuffers();
+		return triangle;
 	}
 
 	/**

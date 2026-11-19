@@ -10,7 +10,10 @@ lyrics drawn in the world around you.
 | ![Settings screen](docs/ingame-settings.png) | ![Hover mode](docs/ingame-hover.png) |
 
 - **Skywriting**: each line is written across the sky where you were looking when it started, then slowly
-  drifts upward. It's part of the world, so hills and trees can get in the way.
+  drifts upward. The words are laid into the sky itself by your graphics card, so hills, trees and clouds pass in
+  front of them and they sink into the haze near the horizon. Pick a **Sky look**: *Starlight* (letters made of
+  light that glow and twinkle), *Smoke* (puffy trails like an aeroplane's skywriting, curling in the wind),
+  *Neon* (bright tubes of colored light) or *Clean* (just the words, softly lit).
 - **Hover**: lines hang just above your crosshair and trail a little behind as you turn. Nothing covers them.
 - **Smooth text**: sixteen bundled fonts (Soft, Bold, Script, Fancy, Handwritten, Deco, Bubbly, Typewriter,
   Rounded, Brush, Retro, Arcade, Poster, Classic, Elegant, Notes) rendered at high resolution, plus Minecraft's own
@@ -205,7 +208,7 @@ screen, so turn on **Demo song** and watch while you adjust.
 | --- | --- |
 | Home | A welcome banner with your sky, shortcuts to the main pages, and what's playing (with media controls when they're on) |
 | Now Playing | The current song and cover, whether lyrics were found, the line being sung, media controls, quick settings, detection status |
-| Lyrics | Mode, animation, animation speed, exit style, how long lines linger, sync offset, this song's timing, whole line at once, next-line preview and its visibility |
+| Lyrics | Mode, sky look (Starlight, Smoke, Neon, Clean), animation, animation speed, exit style, how long lines linger, sync offset, this song's timing, whole line at once, next-line preview and its visibility |
 | Holidays | Holiday themes (seasons / always nearest / off), region, holiday colors, decorations, try a theme, what's on now and coming up |
 | Skies | Seventeen GPU-drawn skies with live previews, only at night, strength, movement, stars, detail |
 | Look | Menu theme, looks, fonts, palettes (with a custom color editor), text effect, glow, size, opacity, line width, bold, italic, ALL CAPS |

@@ -128,6 +128,32 @@ public class ArtlyricsScreenshotTest implements FabricClientGameTest {
 			}, 185f);
 			world.getServer().runCommand("time set 18000");
 
+			// How skywriting looks in the sky: starlight over the Milky Way, neon at a synth sunset, smoke by day.
+			shot(context, "07u-look-starlight-milky-way", 4_200, -16f, c -> {
+				c.apply(Look.STARLIGHT);
+				c.sky = com.artlyrics.sky.SkyTheme.MILKY_WAY;
+				c.skyLook = ArtlyricsConfig.SkyLook.STARLIGHT;
+			}, 160f);
+			shot(context, "07v-look-neon-synth", 13_200, -14f, c -> {
+				c.apply(Look.NEON);
+				c.sky = com.artlyrics.sky.SkyTheme.SYNTH_SUNSET;
+				c.skyLook = ArtlyricsConfig.SkyLook.NEON;
+			}, 180f);
+			shot(context, "07w-look-clean-plain-night", 4_200, -14f, c -> {
+				c.apply(Look.STARLIGHT);
+				c.skyLook = ArtlyricsConfig.SkyLook.CLEAN;
+			});
+			world.getServer().runCommand("time set 6000");
+			shot(context, "07x-look-smoke-day", 4_200, -16f, c -> {
+				c.apply(Look.NOTEBOOK);
+				c.skyLook = ArtlyricsConfig.SkyLook.SMOKE;
+			});
+			shot(context, "07y-look-starlight-day", 4_200, -16f, c -> {
+				c.apply(Look.STARLIGHT);
+				c.skyLook = ArtlyricsConfig.SkyLook.STARLIGHT;
+			});
+			world.getServer().runCommand("time set 18000");
+
 			// Holiday themes: Latvia's flag day, Christmas in hover mode, Seollal with lanterns.
 			shot(context, "08e-holiday-latvia-flag-day", 4_200, -14f, c -> {
 				c.apply(Look.STARLIGHT);
@@ -236,6 +262,7 @@ public class ArtlyricsScreenshotTest implements FabricClientGameTest {
 			c.holidayRegion = "auto";
 			c.sky = com.artlyrics.sky.SkyTheme.NONE;
 			c.cardStyle = defaults.cardStyle;
+			c.skyLook = defaults.skyLook;
 			setup.accept(c);
 			mod.settingsChanged();
 

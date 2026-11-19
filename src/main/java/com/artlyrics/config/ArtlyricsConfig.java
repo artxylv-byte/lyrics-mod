@@ -33,6 +33,22 @@ public final class ArtlyricsConfig {
 		}
 	}
 
+	/** How skywriting looks in the sky (drawn by the GPU). */
+	public enum SkyLook {
+		/** Letters made of light that glow into the sky and twinkle. */
+		STARLIGHT,
+		/** Soft, puffy trails like an aeroplane's skywriting, curling in the wind. */
+		SMOKE,
+		/** Bright tubes of colored light. */
+		NEON,
+		/** Just the words, softened, with a faint light. */
+		CLEAN;
+
+		public String translationKey() {
+			return "artlyrics.sky_look." + name().toLowerCase(Locale.ROOT);
+		}
+	}
+
 	public enum Animation {
 		/** Words softly fade in. */
 		FADE,
@@ -141,6 +157,7 @@ public final class ArtlyricsConfig {
 	// --- Lyrics -------------------------------------------------------------------------------------------
 	public boolean enabled = true;
 	public DisplayMode displayMode = DisplayMode.SKYWRITING;
+	public SkyLook skyLook = SkyLook.STARLIGHT;
 	public Animation animation = Animation.FADE;
 	/** Multiplies how fast animations play (0.5 = slow and dreamy, 2 = snappy). */
 	public float animationSpeed = 1.0f;
@@ -345,6 +362,7 @@ public final class ArtlyricsConfig {
 		if (textEffect == null) textEffect = d.textEffect;
 		if (cardCorner == null) cardCorner = d.cardCorner;
 		if (cardStyle == null) cardStyle = d.cardStyle;
+		if (skyLook == null) skyLook = d.skyLook;
 		if (preferredPlayer == null) preferredPlayer = d.preferredPlayer;
 		if (spotifyClientId == null) spotifyClientId = "";
 		if (holidays == null) holidays = d.holidays;
